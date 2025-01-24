@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 100%);
+        }
+
+        .container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 35px;
+            width: 320px;
+            margin: auto;
+            border-radius: 8px;
+            border: 1px solid #3d3d3d;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            background-color: #202020;
+            text-align: center;
+        }
+
+        .container h2 {
+            color: #ffffff;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 20px;
+            border: 1px solid #3d3d3d;
+            border-radius: 4px;
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: #4a90e2;
+            outline: none;
+            box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            background-color: #4a90e2;
+            color: white;
+            font-weight: 500;
+            font-size: 16px;
+            padding: 14px 20px;
+            margin: 20px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #357abd;
+        }
+
+        label {
+            margin-top: 15px;
+            display: block;
+            font-weight: 500;
+            color: #ffffff;
+            text-align: left;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        ul.errorlist.nonfield {
+            color: #ff4d4d;
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        @media (min-width: 360px) and (max-width: 450px) {
+            .container {
+                width: 85%;
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>ATS Login</h2>
+        <form action="" method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <input type="submit" value="Sign In">
+        </form>
+    </div>
+</body>
+</html>
