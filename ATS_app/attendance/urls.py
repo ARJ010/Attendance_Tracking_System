@@ -10,4 +10,5 @@ urlpatterns = [
     path('teacher-course/', views.teacher_course_form_view, name='teacher_course_form'),
     path('hour-date-course/', views.hour_date_course_form_view, name='hour_date_course_form'),
     path('absent-details/', views.absent_details_form_view, name='absent_details_form'),
+    path('students/', views.student_list, name='student_list'),
 ]

@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
-from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
+from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from .forms import (
@@ -23,6 +23,12 @@ def student_form_view(request):
     else:
         form = StudentForm()
     return render(request, 'attendance/student_form.html', {'form': form})
+
+def student_list(request):
+    # Retrieve all students
+    students = Student.objects.all()
+
+    return render(request, 'attendance/student_list.html', {'students': students})
 
 
 # View for managing Teacher
@@ -116,3 +122,36 @@ def absent_details_form_view(request):
     else:
         form = AbsentDetailsForm()
     return render(request, 'attendance/absent_details_form.html', {'form': form})
+
+
+
+import csv
+from django.core.management.base import BaseCommand
+
+class Command(BaseCommand):
+    help = "Import students from a CSV file where the programme name is provided"
+
+    def add_arguments(self, parser):
+        parser.add_argument('csv_file', type=str, help='Path to the CSV file')
+
+    def handle(self, *args, **options):
+        csv_file = options['csv_file']
+        try:
+            with open(csv_file, mode='r') as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    # Get or create the programme by name
+                    programme, created = Programme.objects.get_or_create(name=row['programme_name'])
+
+                    # Create the student
+                    Student.objects.create(
+                        name=row['name'],
+                        university_register_number=row['university_register_number'],
+                        admission_number=row['admission_number'],
+                        programme=programme
+                    )
+                    self.stdout.write(
+                        self.style.SUCCESS(f"Added {row['name']} to programme {programme.name}")
+                    )
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error: {e}"))
