@@ -1,5 +1,5 @@
 from django import forms
-from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
+from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
@@ -24,12 +24,15 @@ class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
         fields = ['name', 'university_register_number', 'admission_number', 'programme']
-        widgets = {
-            'name': forms.TextInput(attrs={'placeholder': 'Enter full name'}),
-            'university_register_number': forms.TextInput(attrs={'placeholder': 'Enter university register number'}),
-            'admission_number': forms.TextInput(attrs={'placeholder': 'Enter admission number'}),
-            'programme': forms.Select(attrs={'placeholder': 'Select programme'}),
-        }
+    
+    def __init__(self, *args, **kwargs):
+        # Get the currently logged-in teacher's department
+        teacher = kwargs.pop('teacher', None)  # Pass the teacher as an argument to the form
+        super().__init__(*args, **kwargs)
+
+        if teacher:
+            # Filter programmes based on teacher's department
+            self.fields['programme'].queryset = Programme.objects.filter(department=teacher.department)
 
 
 # Form for creating/updating a Course
