@@ -16,31 +16,33 @@ class TeacherForm(forms.ModelForm):
         fields = ['department', 'phone_number']
 
 
+from django import forms
+from .models import Student, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
+
 # Form for creating/updating a Student
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        fields = ['name', 'roll_number', 'university_register_number', 'admission_number', 'programme']
+        fields = ['name', 'university_register_number', 'admission_number', 'programme']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Enter full name'}),
-            'roll_number': forms.TextInput(attrs={'placeholder': 'Enter roll number'}),
             'university_register_number': forms.TextInput(attrs={'placeholder': 'Enter university register number'}),
             'admission_number': forms.TextInput(attrs={'placeholder': 'Enter admission number'}),
-            'programme': forms.TextInput(attrs={'placeholder': 'Enter programme'}),
+            'programme': forms.Select(attrs={'placeholder': 'Select programme'}),
         }
-
 
 
 # Form for creating/updating a Course
 class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
-        fields = ['name', 'code', 'credits', 'year_offered']
+        fields = ['name', 'code', 'credits', 'year_offered', 'department']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Enter course name'}),
             'code': forms.TextInput(attrs={'placeholder': 'Enter course code'}),
             'credits': forms.NumberInput(attrs={'placeholder': 'Enter number of credits'}),
             'year_offered': forms.NumberInput(attrs={'placeholder': 'Enter year offered'}),
+            'department': forms.Select(attrs={'placeholder': 'Select department'}),
         }
 
 
@@ -72,6 +74,7 @@ class HourDateCourseForm(forms.ModelForm):
         model = HourDateCourse
         fields = ['teacher_course', 'date', 'hour']
         widgets = {
+            'teacher_course': forms.Select(attrs={'placeholder': 'Select Teacher-Course'}),
             'date': forms.DateInput(attrs={'type': 'date'}),
             'hour': forms.TextInput(attrs={'placeholder': 'Enter hour (e.g., 1st Hour, 2nd Hour)'}),
         }
@@ -79,11 +82,12 @@ class HourDateCourseForm(forms.ModelForm):
 
 # Form for managing Absent Details
 class AbsentDetailsForm(forms.ModelForm):
+
     class Meta:
         model = AbsentDetails
         fields = ['hour_date_course', 'student', 'status']
         widgets = {
             'hour_date_course': forms.Select(attrs={'placeholder': 'Select Hour-Date-Course'}),
             'student': forms.Select(attrs={'placeholder': 'Select student'}),
-            'status': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'status': forms.Select(choices=[(False, 'Absent'), (True, 'Present')]),
         }

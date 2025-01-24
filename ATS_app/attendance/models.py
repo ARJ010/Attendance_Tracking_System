@@ -4,7 +4,6 @@ from django.db import models
 # Department Table
 class Department(models.Model):
     name = models.CharField(max_length=255, unique=True)
-    code = models.CharField(max_length=50, unique=True)
 
     def __str__(self):
         return self.name
@@ -13,7 +12,6 @@ class Department(models.Model):
 # Programme Table
 class Programme(models.Model):
     name = models.CharField(max_length=255)
-    code = models.CharField(max_length=50, unique=True)
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="programmes")
 
     def __str__(self):
@@ -23,7 +21,6 @@ class Programme(models.Model):
 # Student Table
 class Student(models.Model):
     name = models.CharField(max_length=255)
-    roll_number = models.CharField(max_length=50, unique=True)
     university_register_number = models.CharField(max_length=50, unique=True)
     admission_number = models.CharField(max_length=50, unique=True)
     programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name="students")
