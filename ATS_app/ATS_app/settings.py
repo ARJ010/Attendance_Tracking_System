@@ -65,6 +65,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'attendance.context_processors.is_hod',
             ],
         },
     },
@@ -130,4 +131,4 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = ''
-LOGOUT_REDIRECT_URL = '/index'
+LOGOUT_REDIRECT_URL = '/'

@@ -1,34 +1,98 @@
+import csv 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
 from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db import transaction
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
     StudentCourseForm, TeacherCourseForm, 
-    HourDateCourseForm, AbsentDetailsForm,UserForm
+    HourDateCourseForm, AbsentDetailsForm,
+    UserForm,CSVUploadForm
 )
+
+def clean_name(name):
+    """Standardize the name format: convert to uppercase and replace periods with spaces."""
+    return name.strip().replace('.', ' ').upper()
+
 
 @login_required()
 def index(request):
     return render(request, 'attendance/index.html')
 
-# View for managing Student
-def student_form_view(request):
+@login_required
+def student_list(request):
+    # Get the logged-in teacher's department
+    teacher = Teacher.objects.get(user=request.user)
+    department = teacher.department
+    
+    # Filter students based on the department
+    students = Student.objects.filter(programme__department=department)
+    
+    return render(request, 'attendance/student_list.html', {'students': students})
+
+
+@login_required()
+def add_student(request):
     if request.method == 'POST':
         form = StudentForm(request.POST)
         if form.is_valid():
+            # Save the student
             form.save()
-            return redirect('student_list')
+            return redirect('student_list')  # Redirect to the student list after saving
     else:
         form = StudentForm()
-    return render(request, 'attendance/student_form.html', {'form': form})
 
-def student_list(request):
-    # Retrieve all students
-    students = Student.objects.all()
+    return render(request, 'attendance/add_student.html', {'form': form})
 
-    return render(request, 'attendance/student_list.html', {'students': students})
+
+def upload_students(request):
+    if request.method == 'POST' and request.FILES['csv_file']:
+        form = CSVUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            csv_file = form.cleaned_data['csv_file']
+            decoded_file = csv_file.read().decode('utf-8').splitlines()
+            reader = csv.DictReader(decoded_file)
+
+            for row in reader:
+                programme_name = row.get('programme_name')  # Adjusted to match the CSV column name
+                student_name = clean_name(row.get('name'))  # Clean the student name
+                university_register_number = row.get('university_register_number')
+                admission_number = row.get('admission_number')
+
+                # Check if the student already exists by unique fields (e.g., university_register_number or admission_number)
+                if Student.objects.filter(university_register_number=university_register_number).exists():
+                    messages.warning(request, f"Student with University Register Number '{university_register_number}' already exists. Skipping student '{student_name}'.")
+                    continue  # Skip this student and move to the next one
+
+                if Student.objects.filter(admission_number=admission_number).exists():
+                    messages.warning(request, f"Student with Admission Number '{admission_number}' already exists. Skipping student '{student_name}'.")
+                    continue  # Skip this student and move to the next one
+
+                # Try to get the Programme, handle the case when it doesn't exist
+                try:
+                    programme = Programme.objects.get(name=programme_name)
+                except Programme.DoesNotExist:
+                    messages.error(request, f"Programme '{programme_name}' not found. Skipping student '{student_name}'.")
+                    continue  # Skip this student and move to the next one
+
+                # Create a new student record if programme exists
+                Student.objects.create(
+                    name=student_name,
+                    university_register_number=university_register_number,
+                    admission_number=admission_number,
+                    programme=programme
+                )
+
+            messages.success(request, 'Students uploaded successfully!')
+            return redirect('student_list')
+    else:
+        form = CSVUploadForm()
+    
+    return render(request, 'attendance/upload_students.html', {'form': form})
+
+
 
 
 # View for managing Teacher
@@ -124,34 +188,3 @@ def absent_details_form_view(request):
     return render(request, 'attendance/absent_details_form.html', {'form': form})
 
 
-
-import csv
-from django.core.management.base import BaseCommand
-
-class Command(BaseCommand):
-    help = "Import students from a CSV file where the programme name is provided"
-
-    def add_arguments(self, parser):
-        parser.add_argument('csv_file', type=str, help='Path to the CSV file')
-
-    def handle(self, *args, **options):
-        csv_file = options['csv_file']
-        try:
-            with open(csv_file, mode='r') as file:
-                reader = csv.DictReader(file)
-                for row in reader:
-                    # Get or create the programme by name
-                    programme, created = Programme.objects.get_or_create(name=row['programme_name'])
-
-                    # Create the student
-                    Student.objects.create(
-                        name=row['name'],
-                        university_register_number=row['university_register_number'],
-                        admission_number=row['admission_number'],
-                        programme=programme
-                    )
-                    self.stdout.write(
-                        self.style.SUCCESS(f"Added {row['name']} to programme {programme.name}")
-                    )
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error: {e}"))

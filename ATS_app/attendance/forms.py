@@ -91,3 +91,7 @@ class AbsentDetailsForm(forms.ModelForm):
             'student': forms.Select(attrs={'placeholder': 'Select student'}),
             'status': forms.Select(choices=[(False, 'Absent'), (True, 'Present')]),
         }
+
+
+class CSVUploadForm(forms.Form):
+    csv_file = forms.FileField()
