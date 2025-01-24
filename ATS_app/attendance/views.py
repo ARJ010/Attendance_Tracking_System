@@ -1,13 +1,13 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
 from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
+from django.contrib.auth.decorators import login_required
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
     StudentCourseForm, TeacherCourseForm, 
     HourDateCourseForm, AbsentDetailsForm
 )
-
-
+@login_required
 def index(request):
     return render(request, 'attendance/index.html')
 
