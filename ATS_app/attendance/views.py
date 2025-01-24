@@ -7,7 +7,8 @@ from .forms import (
     StudentCourseForm, TeacherCourseForm, 
     HourDateCourseForm, AbsentDetailsForm,TeacherRegistrationForm
 )
-@login_required
+
+@login_required()
 def index(request):
     return render(request, 'attendance/index.html')
 
