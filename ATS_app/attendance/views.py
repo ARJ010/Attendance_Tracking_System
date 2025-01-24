@@ -2,10 +2,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
 from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
     StudentCourseForm, TeacherCourseForm, 
-    HourDateCourseForm, AbsentDetailsForm,TeacherRegistrationForm
+    HourDateCourseForm, AbsentDetailsForm,UserForm
 )
 
 @login_required()
@@ -27,14 +28,34 @@ def student_form_view(request):
 # View for managing Teacher
 def register_teacher(request):
     if request.method == 'POST':
-        form = TeacherRegistrationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('index')  # Redirect to the home page or any other page
-    else:
-        form = TeacherRegistrationForm()
+        user_form = UserForm(request.POST)
+        teacher_form = TeacherForm(request.POST)
 
-    return render(request, 'attendance/register_teacher.html', {'form': form})
+        if user_form.is_valid() and teacher_form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Save the User instance
+                    user = user_form.save(commit=False)
+                    user.set_password(user_form.cleaned_data['password'])
+                    user.save()
+
+                    # Save the Teacher instance
+                    teacher = teacher_form.save(commit=False)
+                    teacher.user = user
+                    teacher.save()
+
+                return redirect('index')  # Replace with your success URL
+            except Exception as e:
+                print(e)
+                # Handle the exception or show an error message
+    else:
+        user_form = UserForm()
+        teacher_form = TeacherForm()
+
+    return render(request, 'attendance/register_teacher.html', {
+        'user_form': user_form,
+        'teacher_form': teacher_form,
+    })
 
 
 # View for managing Course

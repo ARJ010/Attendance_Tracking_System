@@ -6,12 +6,14 @@ Register Teacher
 
 {% block content %}
 <div class="container">
-    <h2>Register Teacher</h2>
+    <h1>Create a New Teacher</h1>
     <form method="post">
         {% csrf_token %}
-        {{ form.user_form.as_p }}
-        {{ form.teacher_form.as_p }}
-        <button type="submit" class="btn btn-primary">Register</button>
+        <h2>User Information</h2>
+        {{ user_form.as_p }}
+        <h2>Teacher Information</h2>
+        {{ teacher_form.as_p }}
+        <button type="submit">Create Teacher</button>
     </form>
 </div>
 {% endblock %}

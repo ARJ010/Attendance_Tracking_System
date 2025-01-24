@@ -3,41 +3,17 @@ from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, Hour
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
-class UserForm(UserCreationForm):
-    """Form for the User model."""
+class UserForm(forms.ModelForm):
+    password = forms.CharField(widget=forms.PasswordInput, required=True)
+
     class Meta:
         model = User
-        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
+        fields = ['username', 'first_name', 'last_name', 'email', 'password']
 
 class TeacherForm(forms.ModelForm):
-    """Form for the Teacher model."""
     class Meta:
         model = Teacher
         fields = ['department', 'phone_number']
-
-class TeacherRegistrationForm(forms.Form):
-    """Combined form for User and Teacher."""
-    user_form = UserForm(prefix='user')
-    teacher_form = TeacherForm(prefix='teacher')
-
-    def save(self, commit=True):
-        """Save the User and Teacher model instances."""
-        user_form = self.user_form
-        teacher_form = self.teacher_form
-
-        if user_form.is_valid() and teacher_form.is_valid():
-            # Save the User instance
-            user = user_form.save(commit=commit)
-
-            # Save the Teacher instance
-            teacher = teacher_form.save(commit=False)
-            teacher.user = user
-            if commit:
-                teacher.save()
-
-            return teacher
-        return None
-
 
 
 # Form for creating/updating a Student
