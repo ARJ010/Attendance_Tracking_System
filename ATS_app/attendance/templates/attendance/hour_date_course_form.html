@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hour-Date-Course</title>
+</head>
+<body>
+    <h1>Hour-Date-Course</h1>
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save Details</button>
+    </form>
+</body>
+</html>

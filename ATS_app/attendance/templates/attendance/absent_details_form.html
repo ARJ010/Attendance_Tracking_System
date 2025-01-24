@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Absent Details</title>
+</head>
+<body>
+    <h1>Absent Details</h1>
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save Details</button>
+    </form>
+</body>
+</html>
