@@ -11,9 +11,9 @@ from .models import (
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'roll_number', 'university_register_number', 'admission_number', 'department', 'programme')
+    list_display = ('id', 'name', 'roll_number', 'university_register_number', 'admission_number', 'programme')
     search_fields = ('name', 'roll_number', 'university_register_number', 'admission_number')
-    list_filter = ('department', 'programme')
+    list_filter = ('programme',)
 
 @admin.register(Teacher)
 class TeacherAdmin(admin.ModelAdmin):

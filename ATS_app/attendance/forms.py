@@ -20,13 +20,12 @@ class TeacherForm(forms.ModelForm):
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        fields = ['name', 'roll_number', 'university_register_number', 'admission_number', 'department', 'programme']
+        fields = ['name', 'roll_number', 'university_register_number', 'admission_number', 'programme']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Enter full name'}),
             'roll_number': forms.TextInput(attrs={'placeholder': 'Enter roll number'}),
             'university_register_number': forms.TextInput(attrs={'placeholder': 'Enter university register number'}),
             'admission_number': forms.TextInput(attrs={'placeholder': 'Enter admission number'}),
-            'department': forms.TextInput(attrs={'placeholder': 'Enter department'}),
             'programme': forms.TextInput(attrs={'placeholder': 'Enter programme'}),
         }
 
