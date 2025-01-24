@@ -20,11 +20,27 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <!-- Added Links to Each Form -->
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Attendance</a>
+                        <a class="nav-link" href="{% url 'student_form' %}">Student</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Admin</a>
+                        <a class="nav-link" href="{% url 'teacher_form' %}">Teacher</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'course_form' %}">Course</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'student_course_form' %}">Assign Student</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'teacher_course_form' %}">Assign Teacher</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'hour_date_course_form' %}">Hour-Date-Course</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'absent_details_form' %}">Absent Details</a>
                     </li>
                 </ul>
                 {% if user.is_authenticated %}
@@ -33,7 +49,7 @@
                         <span class="navbar-text text-white me-3">Welcome, {{ user.username }}!</span>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Logout</a>
+                        <a class="nav-link" href="{% url 'logout' %}">Logout</a>
                     </li>
                 </ul>
                 {% else %}
