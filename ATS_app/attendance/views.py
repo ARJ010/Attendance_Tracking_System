@@ -4,7 +4,7 @@ from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, Hour
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
     StudentCourseForm, TeacherCourseForm, 
-    HourDateCourseForm, AbsentDetailsForm
+    HourDateCourseForm, AbsentDetailsForm,TeacherRegistrationForm
 )
 
 
@@ -24,15 +24,16 @@ def student_form_view(request):
 
 
 # View for managing Teacher
-def teacher_form_view(request):
+def register_teacher(request):
     if request.method == 'POST':
-        form = TeacherForm(request.POST)
+        form = TeacherRegistrationForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('teacher_list')
+            return redirect('index')  # Redirect to the home page or any other page
     else:
-        form = TeacherForm()
-    return render(request, 'attendance/teacher_form.html', {'form': form})
+        form = TeacherRegistrationForm()
+
+    return render(request, 'attendance/register_teacher.html', {'form': form})
 
 
 # View for managing Course
