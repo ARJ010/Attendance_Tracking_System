@@ -62,16 +62,24 @@ class CourseForm(forms.ModelForm):
 
 
 # Form for assigning a Student to a Course
-class StudentCourseForm(forms.ModelForm):
-    class Meta:
-        model = StudentCourse
-        fields = ['student', 'course']
-        widgets = {
-            'student': forms.Select(attrs={'placeholder': 'Select student'}),
-            'course': forms.Select(attrs={'placeholder': 'Select course'}),
-        }
-
-
+class StudentCourseForm(forms.Form):
+    student = forms.ModelChoiceField(
+        queryset=Student.objects.all(),
+        widget=forms.Select(attrs={'placeholder': 'Select student'}),
+        label="Select Student"
+    )
+    courses = forms.ModelMultipleChoiceField(
+        queryset=Course.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        label="Select Courses"
+    )
+class CourseSelectionForm(forms.Form):
+    courses = forms.ModelMultipleChoiceField(
+        queryset=Course.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        label="Select Courses"
+    )
+    
 # Form for assigning a Teacher to a Course
 class TeacherCourseForm(forms.ModelForm):
     class Meta:
