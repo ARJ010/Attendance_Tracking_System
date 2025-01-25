@@ -4,11 +4,11 @@
 
 {% block content %}
     <h2>Department of {{ department }} (Courses)</h2>
-
+    {% if is_hod %}
     <div class="mb-3">
         <a href="{% url 'add_course' %}" class="btn btn-primary">Add Course</a>
     </div>
-
+    {% endif %}
     <table class="table">
         <thead>
           <tr>
@@ -45,9 +45,9 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <ul id="studentList">
+            <ol id="studentList">
               <!-- Assigned students will be shown here -->
-            </ul>
+            </ol>
           </div>
         </div>
       </div>

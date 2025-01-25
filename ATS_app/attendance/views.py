@@ -1,5 +1,7 @@
 import csv 
 from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
 from django.http import HttpResponse,Http404,JsonResponse
 from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
@@ -8,7 +10,7 @@ from django.contrib import messages
 from django.db import transaction
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
-    StudentEditForm, TeacherCourseForm, 
+    StudentEditForm, UserEditForm, 
     HourDateCourseForm, AbsentDetailsForm,
     UserForm,CSVUploadForm
 )
@@ -241,6 +243,69 @@ def upload_teachers(request):
 
     return render(request, 'attendance/upload_teachers.html', {'form': form})
 
+
+@login_required
+@user_passes_test(HoD_group_required)
+def edit_teacher(request, teacher_id):
+    teacher = get_object_or_404(Teacher, id=teacher_id)  # Get the teacher instance by id
+    user = teacher.user  # Get the related User instance
+
+    if request.method == 'POST':
+        user_form = UserEditForm(request.POST, instance=user)
+        teacher_form = TeacherForm(request.POST, instance=teacher)
+
+        if user_form.is_valid() and teacher_form.is_valid():
+            user_form.save()
+            teacher_form.save()
+            messages.success(request, f"Your profile has been updated successfully.")
+            return redirect('teacher_list')
+
+    else:
+        user_form = UserEditForm(instance=user)
+        teacher_form = TeacherForm(instance=teacher)
+
+    return render(request, 'attendance/edit_teacher.html', {
+        'user_form': user_form,
+        'teacher_form': teacher_form,
+    })
+
+@login_required
+def change_password(request, teacher_id):
+    teacher = get_object_or_404(Teacher, id=teacher_id)
+    user = teacher.user  # Access the associated user object
+
+    if request.method == 'POST':
+        form = PasswordChangeForm(user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)  # Keep the user logged in after password change
+            messages.success(request, 'Your password has been successfully updated!')
+            return redirect('teacher_list')  # Redirect to teacher list after successful password change
+    else:
+        form = PasswordChangeForm(user)
+
+    return render(request, 'attendance/change_password.html', {'form': form, 'teacher': teacher})
+
+@login_required
+@user_passes_test(HoD_group_required)
+def delete_teacher(request, teacher_id):
+    # Get the Teacher object
+    teacher = get_object_or_404(Teacher, id=teacher_id)
+
+    try:
+        with transaction.atomic():
+            # Delete the associated user
+            user = teacher.user
+            user.delete()  # This will delete the user from the User model
+
+            # Delete the Teacher record
+            teacher.delete()
+
+        messages.success(request, f"Teacher '{teacher.user.first_name}' and associated user have been deleted successfully.")
+    except Exception as e:
+        messages.error(request, f"Error deleting teacher '{teacher.user.first_name}': {e}")
+
+    return redirect('teacher_list')
 
 @login_required
 def course_list(request):

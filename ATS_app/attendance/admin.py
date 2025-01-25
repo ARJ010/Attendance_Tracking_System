@@ -30,8 +30,9 @@ class DepartmentAdmin(admin.ModelAdmin):
 @admin.register(Teacher)
 class TeacherAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'department', 'phone_number')
-    search_fields = ('user__username', 'user__email', 'department')
+    search_fields = ('user__username', 'user__email', 'department__name')  # Search on department's name
     list_filter = ('department',)
+
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
