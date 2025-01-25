@@ -264,14 +264,29 @@ def course_form_view(request):
 
 # View for assigning Student to Course
 def student_course_form_view(request):
+    students = Student.objects.all().order_by('university_register_number')  # Sorted by register number
+    
     if request.method == 'POST':
-        form = StudentCourseForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('student_course_list')
-    else:
-        form = StudentCourseForm()
-    return render(request, 'attendance/student_course_form.html', {'form': form})
+        # Retrieve the student and selected courses
+        student_id = request.POST.get('student_id')
+        student = Student.objects.get(id=student_id)
+        selected_course_ids = request.POST.getlist('courses')  # Get selected course IDs
+        
+        # Create StudentCourse entries for each selected course
+        for course_id in selected_course_ids:
+            course = Course.objects.get(id=course_id)
+            # Create a new StudentCourse entry
+            StudentCourse.objects.create(student=student, course=course)
+        
+        return redirect('student_course_form')  # Redirect to the same page after saving assignments
+
+    # Pass all available courses and the assigned courses
+    all_courses = Course.objects.all()
+    return render(request, 'attendance/student_course_form.html', {
+        'students': students, 
+        'all_courses': all_courses
+    })
+
 
 
 # View for assigning Teacher to Course
