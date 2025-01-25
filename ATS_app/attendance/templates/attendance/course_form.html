@@ -1,14 +1,14 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Course Form</title>
-</head>
-<body>
+
+{% extends 'base.html' %}
+
+{% block title %}Add Course{% endblock %}
+
+{% block content %}
     <h1>Course Form</h1>
     <form method="POST">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">Save Course</button>
+        <button type="submit" class="btn btn-primary">Save Course</button>
     </form>
-</body>
-</html>
+    <a href="{% url 'course_list' %}" class="btn btn-secondary mt-3">Back to Course List</a>
+{% endblock %}

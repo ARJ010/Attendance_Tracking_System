@@ -13,7 +13,8 @@ Register Teacher
         {{ user_form.as_p }}
         <h2>Teacher Information</h2>
         {{ teacher_form.as_p }}
-        <button type="submit">Create Teacher</button>
+        <button type="submit" class="btn btn-primary">Create Teacher</button>
     </form>
+    <a href="{% url 'teacher_list' %}" class="btn btn-secondary mt-3">Back to Teacher List</a>
 </div>
 {% endblock %}

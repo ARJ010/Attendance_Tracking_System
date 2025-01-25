@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Course List{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Course List</h1>
+
+    <div class="mb-3">
+        {% if is_hod %}
+            <a href="{% url 'add_course' %}" class="btn btn-primary">Add Course</a>
+        {% endif %}
+    </div>
+
+    <table>
+        <thead>
+          <tr>
+            <th>Course Name</th>
+            <th>Course Code</th>
+            <th>Department</th>
+            <th>Assigned Teachers</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for course in courses %}
+            <tr>
+              <td>{{ course.name }}</td>
+              <td>{{ course.code }}</td>
+              <td>{{ course.department.name }}</td>
+              <td>
+                {% for teacher in course.teachers.all %}
+                  {{ teacher.user.first_name }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4">No courses found.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+{% endblock %}

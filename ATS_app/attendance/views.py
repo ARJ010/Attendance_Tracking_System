@@ -217,6 +217,28 @@ def register_teacher(request):
     })
 
 
+@login_required
+def course_list(request):
+    user = request.user
+
+    # Ensure the logged-in user is a teacher
+    if hasattr(user, 'teacher'):
+        teacher = user.teacher
+
+        # If the teacher is HoD, show all courses in the department
+        if user.groups.filter(name='HoD').exists():
+            courses = Course.objects.filter(department=teacher.department)
+        else:
+            # Regular teacher: Show only courses assigned to them
+            teacher_courses = TeacherCourse.objects.filter(teacher=teacher)
+            courses = Course.objects.filter(id__in=teacher_courses.values('course'))
+    else:
+        # If not a teacher, deny access (optional: redirect or show a message)
+        courses = None
+
+    return render(request, 'attendance/course_list.html', {'courses': courses})
+
+
 # View for managing Course
 def course_form_view(request):
     if request.method == 'POST':
