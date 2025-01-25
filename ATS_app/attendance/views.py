@@ -118,6 +118,40 @@ def teacher_list(request):
     
     return render(request, 'attendance/teacher_list.html', {'teachers': teachers, 'department':department})
 
+# View for managing Teacher
+@login_required
+@user_passes_test(HoD_group_required)
+def register_teacher(request):
+    if request.method == 'POST':
+        user_form = UserForm(request.POST)
+        teacher_form = TeacherForm(request.POST)
+
+        if user_form.is_valid() and teacher_form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Save the User instance
+                    user = user_form.save(commit=False)
+                    user.set_password(user_form.cleaned_data['password'])
+                    user.save()
+
+                    # Save the Teacher instance
+                    teacher = teacher_form.save(commit=False)
+                    teacher.user = user
+                    teacher.save()
+
+                return redirect('index')  # Replace with your success URL
+            except Exception as e:
+                print(e)
+                # Handle the exception or show an error message
+    else:
+        user_form = UserForm()
+        teacher_form = TeacherForm()
+
+    return render(request, 'attendance/register_teacher.html', {
+        'user_form': user_form,
+        'teacher_form': teacher_form,
+    })
+
 
 @login_required
 @user_passes_test(HoD_group_required)
@@ -182,61 +216,6 @@ def upload_teachers(request):
 
 
 @login_required
-def get_assigned_teachers(request, course_id):
-    try:
-        course = Course.objects.get(id=course_id)
-        teacher_courses = TeacherCourse.objects.filter(course=course)
-        teachers = [{"id": tc.teacher.id, "first_name": tc.teacher.user.first_name} for tc in teacher_courses]
-        return JsonResponse({"teachers": teachers})
-    except Course.DoesNotExist:
-        return JsonResponse({"error": "Course not found"}, status=404)
-
-
-def get_assigned_students(request, course_id):
-    # Get the list of students assigned to the course with the given course_id
-    students = StudentCourse.objects.filter(course_id=course_id).select_related('student')
-    student_data = [
-        {'student__name': student.student.name} for student in students
-    ]
-    return JsonResponse({'students': student_data})
-
-
-# View for managing Teacher
-@login_required
-@user_passes_test(HoD_group_required)
-def register_teacher(request):
-    if request.method == 'POST':
-        user_form = UserForm(request.POST)
-        teacher_form = TeacherForm(request.POST)
-
-        if user_form.is_valid() and teacher_form.is_valid():
-            try:
-                with transaction.atomic():
-                    # Save the User instance
-                    user = user_form.save(commit=False)
-                    user.set_password(user_form.cleaned_data['password'])
-                    user.save()
-
-                    # Save the Teacher instance
-                    teacher = teacher_form.save(commit=False)
-                    teacher.user = user
-                    teacher.save()
-
-                return redirect('index')  # Replace with your success URL
-            except Exception as e:
-                print(e)
-                # Handle the exception or show an error message
-    else:
-        user_form = UserForm()
-        teacher_form = TeacherForm()
-
-    return render(request, 'attendance/register_teacher.html', {
-        'user_form': user_form,
-        'teacher_form': teacher_form,
-    })
-
-
-@login_required
 def course_list(request):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
@@ -263,9 +242,21 @@ def course_list(request):
         'course_students': course_students if user.groups.filter(name='HoD').exists() else None,
     })
 
+# View for managing Course
+def add_course(request):
+    if request.method == 'POST':
+        form = CourseForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('course_form')
+    else:
+        form = CourseForm()
+    return render(request, 'attendance/course_form.html', {'form': form})
+
+
 
 @login_required
-def teacher_course_form_view(request):
+def teacher_course_assign(request):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
     user = request.user
@@ -291,6 +282,16 @@ def teacher_course_form_view(request):
         'teachers': teachers,  # Pass the teachers list to the template
     })
 
+@login_required
+def get_assigned_teachers(request, course_id):
+    try:
+        course = Course.objects.get(id=course_id)
+        teacher_courses = TeacherCourse.objects.filter(course=course)
+        teachers = [{"id": tc.teacher.id, "first_name": tc.teacher.user.first_name} for tc in teacher_courses]
+        return JsonResponse({"teachers": teachers})
+    except Course.DoesNotExist:
+        return JsonResponse({"error": "Course not found"}, status=404)
+
 def assign_teachers(request):
     if request.method == 'POST':
         course_id = request.POST.get('course_id')
@@ -303,7 +304,7 @@ def assign_teachers(request):
             teacher = Teacher.objects.get(id=teacher_id)
             TeacherCourse.objects.create(course=course, teacher=teacher)
 
-        return redirect('course_list')  # Redirect to course list after saving
+        return redirect('teacher_course_assign')  # Redirect to course list after saving
 
 # Remove teachers from a course
 def remove_teachers(request):
@@ -330,26 +331,14 @@ def remove_teachers(request):
             messages.error(request, "Some teachers were not assigned to this course.")
         
         # Redirect to course list or the page where you want
-        return redirect('course_list')  # Adjust the redirect URL as needed
+        return redirect('teacher_course_assign')  # Adjust the redirect URL as needed
 
     # If the request is not POST, redirect to the course list page
-    return redirect('course_list')
-
-
-# View for managing Course
-def course_form_view(request):
-    if request.method == 'POST':
-        form = CourseForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('course_form')
-    else:
-        form = CourseForm()
-    return render(request, 'attendance/course_form.html', {'form': form})
+    return redirect('teacher_course_assign')
 
 
 # View for assigning Student to Course
-def student_course_form_view(request):
+def student_course_assign(request):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
     students = Student.objects.filter(programme__department=department).order_by('university_register_number')
@@ -377,6 +366,15 @@ def student_course_form_view(request):
         'all_courses': all_courses,
         'student_courses_map': student_courses_map,
     })
+
+
+def get_assigned_students(request, course_id):
+    # Get the list of students assigned to the course with the given course_id
+    students = StudentCourse.objects.filter(course_id=course_id).select_related('student')
+    student_data = [
+        {'student__name': student.student.name} for student in students
+    ]
+    return JsonResponse({'students': student_data})
 
 
 
