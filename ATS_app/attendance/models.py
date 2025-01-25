@@ -41,11 +41,23 @@ class Teacher(models.Model):
 
 # Course Table
 class Course(models.Model):
-    name = models.CharField(max_length=255)
-    code = models.CharField(max_length=50, unique=True)
+    SEMESTER_CHOICES = [
+        ('1', 'First Semester'),
+        ('2', 'Second Semester'),
+        ('3', 'Third Semester'),
+        ('4', 'Fourth Semester'),
+        ('5', 'Fifth Semester'),
+        ('6', 'Sixth Semester'),
+        ('7', 'Seventh Semester'),
+        ('8', 'Eighth Semester'),
+    ]
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=20)
+    semester = models.CharField(max_length=1, choices=SEMESTER_CHOICES)
     credits = models.IntegerField()
     year_offered = models.IntegerField()
-    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="courses")
+    department = models.ForeignKey(Department, on_delete=models.CASCADE)
+
 
     def __str__(self):
         return self.name

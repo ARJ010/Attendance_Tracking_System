@@ -16,8 +16,6 @@ class TeacherForm(forms.ModelForm):
         fields = ['department', 'phone_number']
 
 
-from django import forms
-from .models import Student, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
 
 # Form for creating/updating a Student
 class StudentForm(forms.ModelForm):
@@ -37,9 +35,22 @@ class StudentForm(forms.ModelForm):
 
 # Form for creating/updating a Course
 class CourseForm(forms.ModelForm):
+    SEMESTER_CHOICES = [
+        ('1', 'First Semester'),
+        ('2', 'Second Semester'),
+        ('3', 'Third Semester'),
+        ('4', 'Fourth Semester'),
+        ('5', 'Fifth Semester'),
+        ('6', 'Sixth Semester'),
+        ('7', 'Seventh Semester'),
+        ('8', 'Eighth Semester'),
+    ]
+
+    semester = forms.ChoiceField(choices=SEMESTER_CHOICES, widget=forms.Select(attrs={'placeholder': 'Select semester'}))
+
     class Meta:
         model = Course
-        fields = ['name', 'code', 'credits', 'year_offered', 'department']
+        fields = ['name', 'code', 'semester', 'credits', 'year_offered', 'department']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Enter course name'}),
             'code': forms.TextInput(attrs={'placeholder': 'Enter course code'}),
@@ -47,6 +58,7 @@ class CourseForm(forms.ModelForm):
             'year_offered': forms.NumberInput(attrs={'placeholder': 'Enter year offered'}),
             'department': forms.Select(attrs={'placeholder': 'Select department'}),
         }
+
 
 
 # Form for assigning a Student to a Course
