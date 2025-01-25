@@ -73,13 +73,9 @@ class StudentCourseForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
         label="Select Courses"
     )
-class CourseSelectionForm(forms.Form):
-    courses = forms.ModelMultipleChoiceField(
-        queryset=Course.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
-        label="Select Courses"
-    )
-    
+
+
+
 # Form for assigning a Teacher to a Course
 class TeacherCourseForm(forms.ModelForm):
     class Meta:

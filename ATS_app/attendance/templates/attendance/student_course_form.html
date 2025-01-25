@@ -122,11 +122,11 @@
                 {% csrf_token %}
                 <div class="courses-list">
                     <!-- Dynamically displaying the courses for the selected student -->
-                    {% for course in form.courses %}
+                    {% for course in all_courses %}
                         <label>
                             <input type="checkbox" name="courses" value="{{ course.id }}" 
-                                   {% if course in student.courses.all %}checked{% endif %}>
-                            {{ course.name }} <!-- Display the course name -->
+                                {% if course in student.courses.all %}checked{% endif %}>
+                            {{ course.code }}-{{ course.department }}  <!-- Display the course name -->
                         </label>
                     {% endfor %}
                 </div>
@@ -139,7 +139,6 @@
             <button type="button" onclick="closeModal()">Close</button>
         </div>
     </div>
-    
 
     <script>
         const modal = document.getElementById('courseModal');
