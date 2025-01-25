@@ -16,6 +16,12 @@
         z-index: 1000;
         justify-content: center;
         align-items: center;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out; /* Smooth transition */
+    }
+    .modal.show {
+        display: flex;
+        opacity: 1;
     }
     .modal-content {
         background-color: #fff;
@@ -72,11 +78,12 @@
             <td>{{ student.name }}</td>  <!-- Student Name -->
             <td>
                 {% for student_course in student_courses_map|get_item:student %}
-                    <!--{{ student_course.course.name }}--> {{ student_course.course.code }}{% if not forloop.last %}, {% endif %}
+                    {{ student_course.course.code }}{% if not forloop.last %}, {% endif %}
                 {% endfor %}
             </td> <!-- Assigned Status -->
             <td>
                 <button onclick="showModal('{{ student.id }}')">Assign Courses</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="showRemoveCoursesModal({{ student.id }})">Remove Courses</button>
             </td>
         </tr>
     {% endfor %}
@@ -95,37 +102,93 @@
                 {% for course in all_courses %}
                     <label>
                         <input type="checkbox" name="courses" value="{{ course.id }}" 
-                            {% if course in student.courses.all %}checked{% endif %}>
-                        {{ course.code }}-{{course.department}} <!-- Display the course name -->
+                            {% if course in student_courses_map|get_item:student %}
+                            checked
+                            {% endif %}>
+                        {{ course.code }} - {{ course.department }}
                     </label>
                 {% endfor %}
             </div>
             <input type="hidden" name="student_id" id="studentId">
             <div class="modal-actions">
                 <button type="submit">Save</button>
-                <button type="button" onclick="closeModal()">Cancel</button>
+                <button type="button" onclick="closeModal('courseModal')">Cancel</button>
             </div>
         </form>
-        <button type="button" onclick="closeModal()">Close</button>
+    </div>
+</div>
+
+<!-- Remove Courses Modal -->
+<div id="removeCoursesModal" class="modal">
+    <div class="modal-content">
+        <h2>Remove Courses from Student</h2>
+        <form method="POST" action="{% url 'remove_courses' %}" id="removeCoursesForm">
+            {% csrf_token %}
+            <div class="courses-list">
+                <ul id="coursesToRemoveList">
+                    <!-- Dynamically filled with student's courses -->
+                </ul>
+            </div>
+            <input type="hidden" name="student_id" id="removeStudentId">
+            <div class="modal-actions">
+                <button type="submit">Remove</button>
+                <button type="button" onclick="closeModal('removeCoursesModal')">Cancel</button>
+            </div>
+        </form>
     </div>
 </div>
 
 {% endblock %}
 
-
 {% block extra_js %}
-  <script>
-        const modal = document.getElementById('courseModal');
-        const studentIdInput = document.getElementById('studentId');
+<script>
+    const modal = document.getElementById('courseModal');
+    const studentIdInput = document.getElementById('studentId');
 
-        function showModal(studentId) {
-            studentIdInput.value = studentId;  // Set student ID to the hidden field
-            modal.style.display = 'flex';  // Display the modal
-        }
+    function showModal(studentId) {
+        studentIdInput.value = studentId;  // Set student ID to the hidden field
+        modal.classList.add('show');  // Display the modal with smooth transition
+    }
 
-        function closeModal() {
-            modal.style.display = 'none';  // Close the modal
-        }
-    </script>
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.classList.remove('show');  // Close the modal with smooth transition
+    }
+
+    const removeCoursesModal = document.getElementById('removeCoursesModal');
+    const removeStudentIdInput = document.getElementById('removeStudentId');
+    
+    function showRemoveCoursesModal(studentId) {
+        removeStudentIdInput.value = studentId;
+        
+        // Fetch the assigned courses for the student via AJAX
+        fetch(`/get_assigned_courses/${studentId}/`)
+            .then(response => response.json())
+            .then(data => {
+                const coursesList = document.getElementById('coursesToRemoveList');
+                coursesList.innerHTML = ''; // Clear the existing list
+                if (data.courses.length > 0) {
+                    data.courses.forEach(course => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <label>
+                                <input type="checkbox" name="courses_to_remove" value="${course.id}">
+                                ${course.code} - ${course.name}
+                            </label>
+                        `;
+                        coursesList.appendChild(li);
+                    });
+                } else {
+                    coursesList.innerHTML = '<p>No courses assigned to this student.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching course data:', error);
+            });
+        
+        removeCoursesModal.classList.add('show');  // Show the modal with smooth transition
+    }
+    
+    
+</script>
 {% endblock %}
-

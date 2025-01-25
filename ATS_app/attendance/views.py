@@ -337,45 +337,86 @@ def remove_teachers(request):
     return redirect('teacher_course_assign')
 
 
-# View for assigning Student to Course
 def student_course_assign(request):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
     students = Student.objects.filter(programme__department=department).order_by('university_register_number')
-    
-    # Prepare the student_courses_map
+
+    # Prepare the student_courses_map for all students
     student_courses_map = {}
     for student in students:
         student_courses_map[student] = StudentCourse.objects.filter(student=student)
     
+    # If the request method is POST, handle form submission
     if request.method == 'POST':
         student_id = request.POST.get('student_id')
         student = Student.objects.get(id=student_id)
         selected_course_ids = request.POST.getlist('courses')
+
+        # Ensure courses are selected
+        if selected_course_ids:
+            # Assign courses to the selected student
+            for course_id in selected_course_ids:
+                course = Course.objects.get(id=course_id)
+                # Check if the student is already assigned to the course
+                if not StudentCourse.objects.filter(student=student, course=course).exists():
+                    StudentCourse.objects.create(student=student, course=course)
+            messages.success(request, f"Courses successfully assigned to {student.name}.")
+        else:
+            messages.error(request, "No courses were selected for assignment.")
         
-        for course_id in selected_course_ids:
-            course = Course.objects.get(id=course_id)
-            StudentCourse.objects.create(student=student, course=course)
-        
-        return redirect('student_course_form')  # Redirect to the same page after saving assignments
+        return redirect('student_course_assign')  # Redirect after saving assignments
     
     all_courses = Course.objects.all()
-    
+
+    # Ensure the selected student is passed to the template
+    selected_student = students.first()  # Example: default to the first student, update as per your logic
+    selected_student_courses = student_courses_map.get(selected_student, [])
+
     return render(request, 'attendance/student_course_form.html', {
         'students': students,
         'all_courses': all_courses,
         'student_courses_map': student_courses_map,
+        'selected_student_courses': selected_student_courses,  # Pass the courses of the selected student
+        'selected_student': selected_student,  # Pass the selected student for further reference
     })
 
 
-def get_assigned_students(request, course_id):
-    # Get the list of students assigned to the course with the given course_id
-    students = StudentCourse.objects.filter(course_id=course_id).select_related('student')
-    student_data = [
-        {'student__name': student.student.name} for student in students
-    ]
-    return JsonResponse({'students': student_data})
+# View to get assigned courses for a student
+def get_assigned_courses(request, student_id):
+    student = Student.objects.get(id=student_id)
+    student_courses = StudentCourse.objects.filter(student=student)
+    courses = [student_course.course for student_course in student_courses]
+    
+    # Prepare the course data to send back
+    course_data = [{'id': course.id, 'code': course.code, 'name': course.name} for course in courses]
+    
+    return JsonResponse({'courses': course_data})
 
+
+
+
+def remove_courses(request):
+    if request.method == 'POST':
+        student_id = request.POST.get('student_id')
+        courses_to_remove = request.POST.getlist('courses_to_remove')
+
+        # Debugging: Log the received course IDs and student ID
+        print(f"Student ID: {student_id}")
+        print(f"Courses to Remove: {courses_to_remove}")
+
+        if student_id and courses_to_remove:
+            student = get_object_or_404(Student, id=student_id)
+
+            # Using transaction to ensure the deletion happens
+            with transaction.atomic():
+                # Delete the selected courses for the student
+                StudentCourse.objects.filter(student=student, course_id__in=courses_to_remove).delete()
+                messages.success(request, f"Selected courses have been removed from {student.name}.")
+        else:
+            messages.error(request, "No courses were selected for removal.")
+
+        return redirect('student_course_assign')  # Redirect back to the form page
 
 
 

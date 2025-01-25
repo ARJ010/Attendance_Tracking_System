@@ -31,12 +31,14 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'course_list' %}">Course</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'student_course_assign' %}">Assign Student</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'teacher_course_assign' %}">Assign Teacher</a>
-                    </li>
+                    {% if is_hod %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'student_course_assign' %}">Assign Student</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'teacher_course_assign' %}">Assign Teacher</a>
+                        </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'hour_date_course_form' %}">Hour-Date-Course</a>
                     </li>
