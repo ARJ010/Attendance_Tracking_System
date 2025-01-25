@@ -1,7 +1,7 @@
 import csv 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.models import User
-from django.http import HttpResponse
+from django.http import HttpResponse,Http404,JsonResponse
 from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -32,9 +32,9 @@ def student_list(request):
     department = teacher.department
     
     # Filter students based on the department
-    students = Student.objects.filter(programme__department=department)
+    students = Student.objects.filter(programme__department=department).order_by('university_register_number')
     
-    return render(request, 'attendance/student_list.html', {'students': students})
+    return render(request, 'attendance/student_list.html', {'students': students, 'department':department})
 
 
 @login_required
@@ -116,7 +116,7 @@ def teacher_list(request):
     # Filter students based on the department
     teachers = Teacher.objects.filter(department=department)
     
-    return render(request, 'attendance/teacher_list.html', {'teachers': teachers})
+    return render(request, 'attendance/teacher_list.html', {'teachers': teachers, 'department':department})
 
 
 @login_required
@@ -181,6 +181,25 @@ def upload_teachers(request):
     return render(request, 'attendance/upload_teachers.html', {'form': form})
 
 
+@login_required
+def get_assigned_teachers(request, course_id):
+    try:
+        course = Course.objects.get(id=course_id)
+        teacher_courses = TeacherCourse.objects.filter(course=course)
+        teachers = [{"id": tc.teacher.id, "first_name": tc.teacher.user.first_name} for tc in teacher_courses]
+        return JsonResponse({"teachers": teachers})
+    except Course.DoesNotExist:
+        return JsonResponse({"error": "Course not found"}, status=404)
+
+
+def get_assigned_students(request, course_id):
+    # Get the list of students assigned to the course with the given course_id
+    students = StudentCourse.objects.filter(course_id=course_id).select_related('student')
+    student_data = [
+        {'student__name': student.student.name} for student in students
+    ]
+    return JsonResponse({'students': student_data})
+
 
 # View for managing Teacher
 @login_required
@@ -217,37 +236,104 @@ def register_teacher(request):
     })
 
 
-from django.shortcuts import render
-from .models import Course, TeacherCourse
-
 @login_required
 def course_list(request):
+    teacher = Teacher.objects.get(user=request.user)
+    department = teacher.department
     user = request.user
-    courses = []
+    if user.groups.filter(name='HoD').exists():
+            courses = Course.objects.filter(department=teacher.department)
+    else:
+        teacher_courses = TeacherCourse.objects.filter(teacher=teacher)
+        courses = Course.objects.filter(id__in=teacher_courses.values('course'))
+    
+    teachers = Teacher.objects.filter(department=department)
+    
+    # List of students for each course (only for HoD)
+    if user.groups.filter(name='HoD').exists():
+        course_students = {}
+        for course in courses:
+            students = StudentCourse.objects.filter(course=course).values('student__name')
+            course_students[course] = students
+    
+    return render(request, 'attendance/course_list.html', {
+        'teachers': teachers,
+        'department': department,
+        'courses': courses,
+        'course_students': course_students if user.groups.filter(name='HoD').exists() else None,
+    })
+
+
+@login_required
+def teacher_course_form_view(request):
+    teacher = Teacher.objects.get(user=request.user)
+    department = teacher.department
+    user = request.user
+    courses = Course.objects.filter(department=teacher.department)
     course_teacher_map = {}
 
     # Ensure the logged-in user is a teacher
     if hasattr(user, 'teacher'):
         teacher = user.teacher
 
-        # If the teacher is HoD, show all courses in the department
-        if user.groups.filter(name='HoD').exists():
-            courses = Course.objects.filter(department=teacher.department)
-        else:
-            # Regular teacher: Show only courses assigned to them
-            teacher_courses = TeacherCourse.objects.filter(teacher=teacher)
-            courses = Course.objects.filter(id__in=teacher_courses.values('course'))
-
         # Create a map of course to its assigned teachers
         for course in courses:
             assigned_teachers = TeacherCourse.objects.filter(course=course)
             course_teacher_map[course] = [tc.teacher.user.first_name for tc in assigned_teachers]
 
-    return render(request, 'attendance/course_list.html', {
+    # Get all teachers for the dropdown
+    teachers = Teacher.objects.filter(department=department)
+
+    return render(request, 'attendance/teacher_course_form.html', {
         'courses': courses,
+        'department':department,
         'course_teacher_map': course_teacher_map,
+        'teachers': teachers,  # Pass the teachers list to the template
     })
 
+def assign_teachers(request):
+    if request.method == 'POST':
+        course_id = request.POST.get('course_id')
+        teacher_ids = request.POST.getlist('teachers')  # Get selected teacher IDs
+
+        course = Course.objects.get(id=course_id)
+        
+        # Create TeacherCourse records for the selected teachers
+        for teacher_id in teacher_ids:
+            teacher = Teacher.objects.get(id=teacher_id)
+            TeacherCourse.objects.create(course=course, teacher=teacher)
+
+        return redirect('course_list')  # Redirect to course list after saving
+
+# Remove teachers from a course
+def remove_teachers(request):
+    if request.method == 'POST':
+        course_id = request.POST.get('course_id')
+        teacher_ids = request.POST.getlist('teachers_to_remove')
+
+        try:
+            # Get the course object
+            course = Course.objects.get(id=course_id)
+
+            # Loop through the selected teacher IDs and remove them
+            for teacher_id in teacher_ids:
+                # Find the TeacherCourse object and remove it
+                teacher_course = TeacherCourse.objects.get(course=course, teacher_id=teacher_id)
+                teacher_course.delete()
+
+            # Success message
+            messages.success(request, "Teachers removed successfully.")
+
+        except Course.DoesNotExist:
+            raise Http404("Course not found.")
+        except TeacherCourse.DoesNotExist:
+            messages.error(request, "Some teachers were not assigned to this course.")
+        
+        # Redirect to course list or the page where you want
+        return redirect('course_list')  # Adjust the redirect URL as needed
+
+    # If the request is not POST, redirect to the course list page
+    return redirect('course_list')
 
 
 # View for managing Course
@@ -264,41 +350,35 @@ def course_form_view(request):
 
 # View for assigning Student to Course
 def student_course_form_view(request):
-    students = Student.objects.all().order_by('university_register_number')  # Sorted by register number
+    teacher = Teacher.objects.get(user=request.user)
+    department = teacher.department
+    students = Student.objects.filter(programme__department=department).order_by('university_register_number')
+    
+    # Prepare the student_courses_map
+    student_courses_map = {}
+    for student in students:
+        student_courses_map[student] = StudentCourse.objects.filter(student=student)
     
     if request.method == 'POST':
-        # Retrieve the student and selected courses
         student_id = request.POST.get('student_id')
         student = Student.objects.get(id=student_id)
-        selected_course_ids = request.POST.getlist('courses')  # Get selected course IDs
+        selected_course_ids = request.POST.getlist('courses')
         
-        # Create StudentCourse entries for each selected course
         for course_id in selected_course_ids:
             course = Course.objects.get(id=course_id)
-            # Create a new StudentCourse entry
             StudentCourse.objects.create(student=student, course=course)
         
         return redirect('student_course_form')  # Redirect to the same page after saving assignments
-
-    # Pass all available courses and the assigned courses
+    
     all_courses = Course.objects.all()
+    
     return render(request, 'attendance/student_course_form.html', {
-        'students': students, 
-        'all_courses': all_courses
+        'students': students,
+        'all_courses': all_courses,
+        'student_courses_map': student_courses_map,
     })
 
 
-
-# View for assigning Teacher to Course
-def teacher_course_form_view(request):
-    if request.method == 'POST':
-        form = TeacherCourseForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('teacher_course_list')
-    else:
-        form = TeacherCourseForm()
-    return render(request, 'attendance/teacher_course_form.html', {'form': form})
 
 
 # View for Hour-Date-Course

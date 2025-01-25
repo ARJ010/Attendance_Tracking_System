@@ -1,147 +1,120 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assign Courses to Students</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        table, th, td {
-            border: 1px solid #ccc;
-        }
-        th, td {
-            text-align: left;
-            padding: 10px;
-        }
-        th {
-            background-color: #f4f4f4;
-        }
-        button {
-            background-color: #0044cc;
-            color: #fff;
-            border: none;
-            padding: 8px 16px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        button:hover {
-            background-color: #0033aa;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            width: 700px; /* Larger window size */
-            max-height: 70vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        .modal-content form {
-            display: flex;
-            flex-direction: column;
-        }
-        .modal-content button {
-            margin-top: 10px;
-            align-self: flex-end;
-        }
-        .courses-list {
-            margin-top: 10px;
-        }
-        .courses-list label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 20px;
-        }
-        .modal-actions button {
-            margin-left: 10px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Assign Courses to Students</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Serial No.</th>
-                <th>Register Number</th>
-                <th>Student Name</th>
-                <th>Assigned</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for student in students %}
-            <tr>
-                <td>{{ forloop.counter }}</td>  <!-- Serial Number -->
-                <td>{{ student.university_register_number }}</td>  <!-- Register Number -->
-                <td>{{ student.name }}</td>  <!-- Student Name -->
-                <td>
-                    {% if student.courses.all %}
-                        Assigned
-                    {% else %}
-                        Not Assigned
-                    {% endif %}
-                </td> <!-- Assigned Status -->
-                <td>
-                    <button onclick="showModal('{{ student.id }}')">Assign Courses</button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+{% extends 'base.html' %}
+{% load custom_filters %}
 
-    <!-- Modal for course selection -->
-    <div id="courseModal" class="modal">
-        <div class="modal-content">
-            <h2>Select Courses</h2>
-            <form method="POST" id="courseForm">
-                {% csrf_token %}
-                <div class="courses-list">
-                    <!-- Dynamically displaying the courses for the selected student -->
-                    {% for course in all_courses %}
-                        <label>
-                            <input type="checkbox" name="courses" value="{{ course.id }}" 
-                                {% if course in student.courses.all %}checked{% endif %}>
-                            {{ course.code }}-{{course.department}} <!-- Display the course name -->
-                        </label>
-                    {% endfor %}
-                </div>
-                <input type="hidden" name="student_id" id="studentId">
-                <div class="modal-actions">
-                    <button type="submit">Save</button>
-                    <button type="button" onclick="closeModal()">Cancel</button>
-                </div>
-            </form>
-            <button type="button" onclick="closeModal()">Close</button>
-        </div>
+{% block title %}Student List{% endblock %}
+
+{% block extra_head %}
+<style>
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-content {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 8px;
+        width: 700px; /* Larger window size */
+        max-height: 70vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .modal-content form {
+        display: flex;
+        flex-direction: column;
+    }
+    .modal-content button {
+        margin-top: 10px;
+        align-self: flex-end;
+    }
+    .courses-list {
+        margin-top: 10px;
+    }
+    .courses-list label {
+        display: block;
+        margin-bottom: 5px;
+    }
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 20px;
+    }
+    .modal-actions button {
+        margin-left: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Assign Courses to Students</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Serial No.</th>
+            <th>Register Number</th>
+            <th>Student Name</th>
+            <th>Assigned</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for student in students %}
+        <tr>
+            <td>{{ forloop.counter }}</td>  <!-- Serial Number -->
+            <td>{{ student.university_register_number }}</td>  <!-- Register Number -->
+            <td>{{ student.name }}</td>  <!-- Student Name -->
+            <td>
+                {% for student_course in student_courses_map|get_item:student %}
+                    <!--{{ student_course.course.name }}--> {{ student_course.course.code }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </td> <!-- Assigned Status -->
+            <td>
+                <button onclick="showModal('{{ student.id }}')">Assign Courses</button>
+            </td>
+        </tr>
+    {% endfor %}
+
+    </tbody>
+</table>
+
+<!-- Modal for course selection -->
+<div id="courseModal" class="modal">
+    <div class="modal-content">
+        <h2>Select Courses</h2>
+        <form method="POST" id="courseForm">
+            {% csrf_token %}
+            <div class="courses-list">
+                <!-- Dynamically displaying the courses for the selected student -->
+                {% for course in all_courses %}
+                    <label>
+                        <input type="checkbox" name="courses" value="{{ course.id }}" 
+                            {% if course in student.courses.all %}checked{% endif %}>
+                        {{ course.code }}-{{course.department}} <!-- Display the course name -->
+                    </label>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="student_id" id="studentId">
+            <div class="modal-actions">
+                <button type="submit">Save</button>
+                <button type="button" onclick="closeModal()">Cancel</button>
+            </div>
+        </form>
+        <button type="button" onclick="closeModal()">Close</button>
     </div>
-    
+</div>
 
-    <script>
+{% endblock %}
+
+
+{% block extra_js %}
+  <script>
         const modal = document.getElementById('courseModal');
         const studentIdInput = document.getElementById('studentId');
 
@@ -154,5 +127,5 @@
             modal.style.display = 'none';  // Close the modal
         }
     </script>
-</body>
-</html>
+{% endblock %}
+

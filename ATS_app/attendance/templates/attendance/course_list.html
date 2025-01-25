@@ -3,25 +3,19 @@
 {% block title %}Course List{% endblock %}
 
 {% block content %}
-    <h1 class="mb-4">Course List</h1>
+    <h2>Department of {{ department }} (Courses)</h2>
 
     <div class="mb-3">
-        {% if is_hod %}
-            <a href="{% url 'add_course' %}" class="btn btn-primary">Add Course</a>
-        {% endif %}
+        <a href="{% url 'add_course' %}" class="btn btn-primary">Add Course</a>
     </div>
 
-    <table>
+    <table class="table">
         <thead>
           <tr>
             <th>Course Name</th>
             <th>Course Code</th>
             <th>Department</th>
-            {% if is_hod %}
-            <th>Assigned Teachers</th>
-
-              <th>Actions</th>
-            {% endif %}
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -30,23 +24,72 @@
               <td>{{ course.name }}</td>
               <td>{{ course.code }}</td>
               <td>{{ course.department.name }}</td>
-              {% if is_hod %}
               <td>
-                {% for teacher_course in course.teachercourse_set.all %}
-                  {{ teacher_course.teacher.user.first_name }}{% if not forloop.last %}, {% endif %}
-                {% endfor %}
-              </td>
-                <td>
-                    <button type="button" class="btn btn-success btn-sm">Assign Teacher</button>
-                    <button type="button" class="btn btn-danger btn-sm">Remove Assignment</button>
-                </td>
-              {% endif %}
+                <button type="button" class="btn btn-info show-btn" data-course="{{ course.id }}">Show Students</button>
+            </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="{% if is_hod %}5{% else %}4{% endif %}">No courses found.</td>
+                <td colspan="4">No courses found.</td>
             </tr>
           {% endfor %}
         </tbody>
-      </table>
+    </table>
+
+    <!-- Modal -->
+    <div class="modal fade" id="studentsModal" tabindex="-1" aria-labelledby="studentsModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="studentsModalLabel">Assigned Students</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <ul id="studentList">
+              <!-- Assigned students will be shown here -->
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    // JavaScript for showing the students in a popup
+    document.addEventListener("DOMContentLoaded", function() {
+        const buttons = document.querySelectorAll('.show-btn');
+        
+        buttons.forEach(button => {
+            button.addEventListener('click', function() {
+                const courseId = button.getAttribute('data-course');
+                
+                // Fetch the students assigned to this course using AJAX
+                fetch(`/get_assigned_students/${courseId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const studentList = document.getElementById('studentList');
+                        studentList.innerHTML = ''; // Clear previous list
+                        
+                        if (data.students.length > 0) {
+                            data.students.forEach(student => {
+                                const listItem = document.createElement('li');
+                                listItem.textContent = student.student__name;
+                                studentList.appendChild(listItem);
+                            });
+                        } else {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = 'No students assigned';
+                            studentList.appendChild(listItem);
+                        }
+                    });
+
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
+                modal.show();
+            });
+        });
+    });
+  </script>
 {% endblock %}
