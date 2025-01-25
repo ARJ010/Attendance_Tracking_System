@@ -1,5 +1,17 @@
 from django.contrib.auth.models import User
 from django.db import models
+from datetime import date
+
+def calculate_year(current_date):
+    """
+    Calculate the academic year based on the date.
+    June 1 of a year to May 31 of the next year is considered the same academic year.
+    """
+    if current_date.month >= 6:  # From June to December
+        return current_date.year
+    else:  # From January to May
+        return current_date.year - 1
+
 
 # Department Table
 class Department(models.Model):
@@ -55,7 +67,6 @@ class Course(models.Model):
     code = models.CharField(max_length=20)
     semester = models.CharField(max_length=1, choices=SEMESTER_CHOICES)
     credits = models.IntegerField()
-    year_offered = models.IntegerField()
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
 
 
@@ -65,26 +76,38 @@ class Course(models.Model):
 
 # Student-Course Table
 class StudentCourse(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    student = models.ForeignKey("Student", on_delete=models.CASCADE)
+    course = models.ForeignKey("Course", on_delete=models.CASCADE)
+    year = models.PositiveIntegerField(editable=False)  # Year is non-editable
 
     class Meta:
-        unique_together = ('student', 'course')
+        unique_together = ('student', 'course', 'year')
+
+    def save(self, *args, **kwargs):
+        # Calculate and set the year dynamically
+        self.year = calculate_year(date.today())
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.student.name} - {self.course.name}"
+        return f"{self.student.name} - {self.course.name} - {self.year}"
 
 
 # Teacher-Course Table
 class TeacherCourse(models.Model):
-    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    teacher = models.ForeignKey("Teacher", on_delete=models.CASCADE)
+    course = models.ForeignKey("Course", on_delete=models.CASCADE)
+    year = models.PositiveIntegerField(editable=False)  # Year is non-editable
 
     class Meta:
-        unique_together = ('teacher', 'course')
+        unique_together = ('teacher', 'course', 'year')
+
+    def save(self, *args, **kwargs):
+        # Calculate and set the year dynamically
+        self.year = calculate_year(date.today())
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.teacher.user.username} - {self.course.name}"
+        return f"{self.teacher.user.username} - {self.course.name} - {self.year}"
 
 
 # Hour-Date-Course Table
@@ -92,7 +115,12 @@ class HourDateCourse(models.Model):
     teacher_course = models.ForeignKey(TeacherCourse, on_delete=models.CASCADE)
     date = models.DateField()
     hour = models.PositiveSmallIntegerField()  # Hour (1-5)
-    year = models.IntegerField()  # Year of the course (e.g., 2025)
+    year = models.PositiveIntegerField(editable=False)  # Year is non-editable
+
+    def save(self, *args, **kwargs):
+        # Calculate the year based on the date field
+        self.year = calculate_year(self.date)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.teacher_course} - {self.date} Hour {self.hour} - Year {self.year}"

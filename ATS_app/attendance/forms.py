@@ -71,12 +71,11 @@ class CourseForm(forms.ModelForm):
 
     class Meta:
         model = Course
-        fields = ['name', 'code', 'semester', 'credits', 'year_offered', 'department']
+        fields = ['name', 'code', 'semester', 'credits', 'department']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Enter course name'}),
             'code': forms.TextInput(attrs={'placeholder': 'Enter course code'}),
             'credits': forms.NumberInput(attrs={'placeholder': 'Enter number of credits'}),
-            'year_offered': forms.NumberInput(attrs={'placeholder': 'Enter year offered'}),
             'department': forms.Select(attrs={'placeholder': 'Select department'}),
         }
 
