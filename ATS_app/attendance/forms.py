@@ -16,8 +16,6 @@ class TeacherForm(forms.ModelForm):
         fields = ['department', 'phone_number']
 
 
-from django import forms
-from .models import Student, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
 
 # Form for creating/updating a Student
 class StudentForm(forms.ModelForm):
@@ -37,9 +35,22 @@ class StudentForm(forms.ModelForm):
 
 # Form for creating/updating a Course
 class CourseForm(forms.ModelForm):
+    SEMESTER_CHOICES = [
+        ('1', 'First Semester'),
+        ('2', 'Second Semester'),
+        ('3', 'Third Semester'),
+        ('4', 'Fourth Semester'),
+        ('5', 'Fifth Semester'),
+        ('6', 'Sixth Semester'),
+        ('7', 'Seventh Semester'),
+        ('8', 'Eighth Semester'),
+    ]
+
+    semester = forms.ChoiceField(choices=SEMESTER_CHOICES, widget=forms.Select(attrs={'placeholder': 'Select semester'}))
+
     class Meta:
         model = Course
-        fields = ['name', 'code', 'credits', 'year_offered', 'department']
+        fields = ['name', 'code', 'semester', 'credits', 'year_offered', 'department']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Enter course name'}),
             'code': forms.TextInput(attrs={'placeholder': 'Enter course code'}),
@@ -49,16 +60,26 @@ class CourseForm(forms.ModelForm):
         }
 
 
-# Form for assigning a Student to a Course
-class StudentCourseForm(forms.ModelForm):
-    class Meta:
-        model = StudentCourse
-        fields = ['student', 'course']
-        widgets = {
-            'student': forms.Select(attrs={'placeholder': 'Select student'}),
-            'course': forms.Select(attrs={'placeholder': 'Select course'}),
-        }
 
+# Form for assigning a Student to a Course
+class StudentCourseForm(forms.Form):
+    student = forms.ModelChoiceField(
+        queryset=Student.objects.all(),
+        widget=forms.Select(attrs={'placeholder': 'Select student'}),
+        label="Select Student"
+    )
+    courses = forms.ModelMultipleChoiceField(
+        queryset=Course.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        label="Select Courses"
+    )
+
+class CourseSelectionForm(forms.Form):
+    courses = forms.ModelMultipleChoiceField(
+        queryset=Course.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        label="Select Courses"
+    )
 
 # Form for assigning a Teacher to a Course
 class TeacherCourseForm(forms.ModelForm):
