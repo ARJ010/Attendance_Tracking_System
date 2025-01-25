@@ -223,7 +223,7 @@ def course_form_view(request):
         form = CourseForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('course_list')
+            return redirect('course_form')
     else:
         form = CourseForm()
     return render(request, 'attendance/course_form.html', {'form': form})

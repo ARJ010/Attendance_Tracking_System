@@ -1,10 +1,12 @@
 /* General Styles */
-body {
+html, body {
     font-family: 'Arial', sans-serif;
     background-color: #f8f9fa; /* Light background color for the entire page */
     color: #212529; /* Standard text color */
+    height: 100%;
     margin: 0;
-    padding: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Navbar Styles */
@@ -32,10 +34,15 @@ footer {
     background-color: #343a40;
     color: #ffffff;
     font-size: 0.9rem;
+    text-align: center;
+    padding: 10px 0;
+    /* Optional box shadow for visual separation */
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* Main Content */
 .container {
+    flex: 1; /* Ensures the container takes up remaining space */
     background-color: #ffffff;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
