@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.db import transaction
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
-    StudentCourseForm, TeacherCourseForm, 
+    StudentEditForm, TeacherCourseForm, 
     HourDateCourseForm, AbsentDetailsForm,
     UserForm,CSVUploadForm
 )
@@ -105,6 +105,33 @@ def upload_students(request):
         form = CSVUploadForm()
     
     return render(request, 'attendance/upload_students.html', {'form': form})
+
+@login_required
+def remove_student(request, id):
+    student = get_object_or_404(Student, id=id)
+    
+    # Optionally check if the user has permissions to delete the student
+    student.delete()
+    
+    return redirect('student_list')
+
+@login_required
+def edit_student(request, id):
+    student = get_object_or_404(Student, id=id)
+    teacher = student.programme.department.teachers.filter(user=request.user).first()  # Use 'teachers' instead of 'teacher_set'
+    
+    if not teacher:
+        return redirect('student_list')  # If the teacher isn't part of the student's department, redirect
+
+    if request.method == 'POST':
+        form = StudentForm(request.POST, instance=student, teacher=teacher)
+        if form.is_valid():
+            form.save()
+            return redirect('student_list')  # Redirect to the student list after saving
+    else:
+        form = StudentForm(instance=student, teacher=teacher)
+    
+    return render(request, 'attendance/edit_student.html', {'form': form, 'student': student})
 
 
 @login_required
@@ -241,6 +268,16 @@ def course_list(request):
         'courses': courses,
         'course_students': course_students if user.groups.filter(name='HoD').exists() else None,
     })
+
+def get_assigned_students(request, course_id):
+    students = StudentCourse.objects.filter(course_id=course_id).select_related('student__programme')
+    students_data = [{
+        'name': student.student.name,
+        'university_register_number': student.student.university_register_number,
+        'programme': student.student.programme.name  # Assuming 'name' is the field in Programme
+    } for student in students]
+    
+    return JsonResponse({'students': students_data})
 
 # View for managing Course
 def add_course(request):

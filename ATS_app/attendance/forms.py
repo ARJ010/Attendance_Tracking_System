@@ -32,6 +32,18 @@ class StudentForm(forms.ModelForm):
             # Filter programmes based on teacher's department
             self.fields['programme'].queryset = Programme.objects.filter(department=teacher.department)
 
+class StudentEditForm(forms.ModelForm):
+    class Meta:
+        model = Student
+        fields = ['university_register_number', 'name', 'admission_number', 'programme']
+    
+    def __init__(self, *args, **kwargs):
+        teacher = kwargs.pop('teacher', None)
+        super().__init__(*args, **kwargs)
+        
+        if teacher:
+            # Filter programmes based on the teacher's department
+            self.fields['programme'].queryset = Programme.objects.filter(department=teacher.department)
 
 # Form for creating/updating a Course
 class CourseForm(forms.ModelForm):

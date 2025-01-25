@@ -57,7 +57,6 @@
 
 {% block extra_js %}
   <script>
-    // JavaScript for showing the students in a popup
     document.addEventListener("DOMContentLoaded", function() {
         const buttons = document.querySelectorAll('.show-btn');
         
@@ -75,7 +74,7 @@
                         if (data.students.length > 0) {
                             data.students.forEach(student => {
                                 const listItem = document.createElement('li');
-                                listItem.textContent = student.student__name;
+                                listItem.textContent = `${student.name} (${student.university_register_number}, ${student.programme})`;
                                 studentList.appendChild(listItem);
                             });
                         } else {
