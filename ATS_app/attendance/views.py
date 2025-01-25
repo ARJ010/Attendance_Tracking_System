@@ -217,9 +217,14 @@ def register_teacher(request):
     })
 
 
+from django.shortcuts import render
+from .models import Course, TeacherCourse
+
 @login_required
 def course_list(request):
     user = request.user
+    courses = []
+    course_teacher_map = {}
 
     # Ensure the logged-in user is a teacher
     if hasattr(user, 'teacher'):
@@ -232,11 +237,47 @@ def course_list(request):
             # Regular teacher: Show only courses assigned to them
             teacher_courses = TeacherCourse.objects.filter(teacher=teacher)
             courses = Course.objects.filter(id__in=teacher_courses.values('course'))
-    else:
-        # If not a teacher, deny access (optional: redirect or show a message)
-        courses = None
 
-    return render(request, 'attendance/course_list.html', {'courses': courses})
+        # Create a map of course to its assigned teachers
+        for course in courses:
+            assigned_teachers = TeacherCourse.objects.filter(course=course)
+            course_teacher_map[course] = [tc.teacher.user.first_name for tc in assigned_teachers]
+
+    return render(request, 'attendance/course_list.html', {
+        'courses': courses,
+        'course_teacher_map': course_teacher_map,
+    })
+
+
+
+@login_required
+def assign_teacher(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    teacher = request.user.teacher
+
+    # Handle assigning teacher logic
+    if not TeacherCourse.objects.filter(course=course, teacher=teacher).exists():
+        TeacherCourse.objects.create(course=course, teacher=teacher)
+        messages.success(request, f"Teacher {teacher.user.first_name} assigned to the course {course.name}.")
+    else:
+        messages.warning(request, f"Teacher {teacher.user.first_name} is already assigned to the course {course.name}.")
+    
+    return redirect('course_list')
+
+@login_required
+def remove_teacher(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    teacher = request.user.teacher
+
+    # Handle removing teacher logic
+    teacher_course = TeacherCourse.objects.filter(course=course, teacher=teacher).first()
+    if teacher_course:
+        teacher_course.delete()
+        messages.success(request, f"Teacher {teacher.user.first_name} removed from the course {course.name}.")
+    else:
+        messages.warning(request, f"Teacher {teacher.user.first_name} is not assigned to the course {course.name}.")
+    
+    return redirect('course_list')
 
 
 # View for managing Course
