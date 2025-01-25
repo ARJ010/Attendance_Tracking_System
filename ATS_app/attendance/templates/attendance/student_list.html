@@ -2,8 +2,10 @@
 
 {% block title %}Student List{% endblock %}
 
+{% block extra_head %}{% endblock %}
+
 {% block content %}
-    <h1 class="mb-4">Student List</h1>
+    <h2> Department of {{ department }} (Students)</h2>
 
     <div class="mb-3">
         {% if is_hod %}
@@ -12,11 +14,12 @@
         {% endif %}
     </div>
 
-    <table class="table table-bordered">
+    <table>
         <thead>
             <tr>
-                <th>Name</th>
+                <th>Serial No.</th>
                 <th>University Register Number</th>
+                <th>Name</th>
                 <th>Admission Number</th>
                 <th>Programme</th>
             </tr>
@@ -24,8 +27,9 @@
         <tbody>
             {% for student in students %}
                 <tr>
-                    <td>{{ student.name }}</td>
+                    <td>{{ forloop.counter }}</td>  <!-- Serial Number -->
                     <td>{{ student.university_register_number }}</td>
+                    <td>{{ student.name }}</td>
                     <td>{{ student.admission_number }}</td>
                     <td>{{ student.programme.name }}</td>
                 </tr>
