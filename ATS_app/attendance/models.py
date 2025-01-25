@@ -94,9 +94,6 @@ class HourDateCourse(models.Model):
     hour = models.PositiveSmallIntegerField()  # Hour (1-5)
     year = models.IntegerField()  # Year of the course (e.g., 2025)
 
-    class Meta:
-        unique_together = ('teacher_course', 'date', 'hour', 'year')  # Ensure unique combination of teacher, course, hour, and year
-
     def __str__(self):
         return f"{self.teacher_course} - {self.date} Hour {self.hour} - Year {self.year}"
 
