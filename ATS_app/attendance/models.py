@@ -91,10 +91,15 @@ class TeacherCourse(models.Model):
 class HourDateCourse(models.Model):
     teacher_course = models.ForeignKey(TeacherCourse, on_delete=models.CASCADE)
     date = models.DateField()
-    hour = models.CharField(max_length=50)
+    hour = models.PositiveSmallIntegerField()  # Hour (1-5)
+    year = models.IntegerField()  # Year of the course (e.g., 2025)
+
+    class Meta:
+        unique_together = ('teacher_course', 'date', 'hour', 'year')  # Ensure unique combination of teacher, course, hour, and year
 
     def __str__(self):
-        return f"{self.teacher_course} - {self.date} {self.hour}"
+        return f"{self.teacher_course} - {self.date} Hour {self.hour} - Year {self.year}"
+
 
 
 # Absent Details Table
