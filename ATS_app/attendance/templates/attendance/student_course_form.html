@@ -126,7 +126,7 @@
                         <label>
                             <input type="checkbox" name="courses" value="{{ course.id }}" 
                                 {% if course in student.courses.all %}checked{% endif %}>
-                            {{ course.code }}-{{ course.department }}  <!-- Display the course name -->
+                            {{ course.code }}-{{course.department}} <!-- Display the course name -->
                         </label>
                     {% endfor %}
                 </div>
@@ -139,6 +139,7 @@
             <button type="button" onclick="closeModal()">Close</button>
         </div>
     </div>
+    
 
     <script>
         const modal = document.getElementById('courseModal');
