@@ -102,13 +102,6 @@ def upload_students(request):
             messages.success(request, 'Students uploaded successfully!')
             return redirect('student_list')
     else:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-        form = StudentForm()
-    return render(request, 'attendance/student_form.html', {'form': form})
-=======
-=======
->>>>>>> main
         form = CSVUploadForm()
     
     return render(request, 'attendance/upload_students.html', {'form': form})
@@ -154,22 +147,11 @@ def upload_teachers(request):
                     messages.warning(request, f"User with email '{email}' already exists. Skipping teacher '{name}'.")
                     continue
 
-<<<<<<< HEAD
                 try:
 
                     # Create or get the department
                     department, created = Department.objects.get_or_create(name=department_name)
 
-=======
-                # Try to get the department, skip if it does not exist
-                try:
-                    department = Department.objects.get(name=department_name)
-                except Department.DoesNotExist:
-                    messages.warning(request, f"Department '{department_name}' does not exist. Skipping teacher '{name}'.")
-                    continue
-
-                try:
->>>>>>> main
                     # Create a new user
                     with transaction.atomic():
                         user = User.objects.create_user(username=username, email=email, password=password)
@@ -183,14 +165,10 @@ def upload_teachers(request):
                             phone_number=mobile_number,  # Mobile number can be edited later
                         )
 
-<<<<<<< HEAD
                     if created:
                         messages.success(request, f"Department '{department_name}' created and teacher '{name}' uploaded successfully!")
                     else:
                         messages.success(request, f"Teacher '{name}' uploaded successfully!")
-=======
-                    messages.success(request, f"Teacher '{name}' uploaded successfully!")
->>>>>>> main
 
                 except Exception as e:
                     messages.error(request, f"Error uploading teacher '{name}': {e}")
@@ -202,10 +180,6 @@ def upload_teachers(request):
 
     return render(request, 'attendance/upload_teachers.html', {'form': form})
 
-<<<<<<< HEAD
->>>>>>> Stashed changes
-=======
->>>>>>> main
 
 
 # View for managing Teacher
