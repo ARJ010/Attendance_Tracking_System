@@ -22,6 +22,9 @@
                 <th>Name</th>
                 <th>Admission Number</th>
                 <th>Programme</th>
+                {% if is_hod %}
+                <th>Actions</th>  <!-- Added Actions Column -->
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -32,10 +35,16 @@
                     <td>{{ student.name }}</td>
                     <td>{{ student.admission_number }}</td>
                     <td>{{ student.programme.name }}</td>
+                    {% if is_hod %}
+                    <td>
+                        <a href="{% url 'edit_student' student.id %}" class="btn btn-warning btn-sm">Edit</a>  <!-- Edit Button -->
+                        <a href="{% url 'remove_student' student.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this student?')">Remove</a>  <!-- Remove Button with Confirmation -->
+                    </td>
+                    {% endif %}
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center">No students found.</td>
+                    <td {% if is_hod %}colspan="6"{% else %}colspan="5"{% endif %} class="text-center">No students found.</td>
                 </tr>
             {% endfor %}
         </tbody>

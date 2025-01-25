@@ -10,6 +10,15 @@ class UserForm(forms.ModelForm):
         model = User
         fields = ['username', 'first_name', 'last_name', 'email', 'password']
 
+class UserEditForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name']  # Add other fields as needed
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # You can customize form widgets or validations if needed
+
 class TeacherForm(forms.ModelForm):
     class Meta:
         model = Teacher
@@ -32,6 +41,18 @@ class StudentForm(forms.ModelForm):
             # Filter programmes based on teacher's department
             self.fields['programme'].queryset = Programme.objects.filter(department=teacher.department)
 
+class StudentEditForm(forms.ModelForm):
+    class Meta:
+        model = Student
+        fields = ['university_register_number', 'name', 'admission_number', 'programme']
+    
+    def __init__(self, *args, **kwargs):
+        teacher = kwargs.pop('teacher', None)
+        super().__init__(*args, **kwargs)
+        
+        if teacher:
+            # Filter programmes based on the teacher's department
+            self.fields['programme'].queryset = Programme.objects.filter(department=teacher.department)
 
 # Form for creating/updating a Course
 class CourseForm(forms.ModelForm):

@@ -10,7 +10,7 @@
         <a href="{% url 'register_teacher' %}" class="btn btn-primary">Add Teacher</a>
         <a href="{% url 'upload_teachers' %}" class="btn btn-secondary">Bulk Add Teachers</a>
     {% endif %}
-</div>
+  </div>
 
   <table>
     <thead>
@@ -19,6 +19,7 @@
         <th>Username</th>
         <th>Email</th>
         <th>Mobile Number</th>
+        <th>Actions</th> <!-- Add this column for actions -->
       </tr>
     </thead>
     <tbody>
@@ -28,6 +29,16 @@
           <td>{{ teacher.user.username }}</td>
           <td>{{ teacher.user.email }}</td>
           <td>{{ teacher.phone_number }}</td>
+          <td>
+            {% if is_hod or teacher.user == request.user %}
+              <!-- Display actions if user is HoD or if teacher is the logged-in user -->
+              <a href="{% url 'edit_teacher' teacher.id %}" class="btn btn-warning btn-sm">Edit</a>
+              <a href="{% url 'change_password' teacher.id %}" class="btn btn-info btn-sm">Change Password</a>
+            {% endif %}
+            {% if is_hod %}
+              <a href="{% url 'delete_teacher' teacher.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
+            {% endif %}
+          </td>
         </tr>
       {% empty %}
         <tr>

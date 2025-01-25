@@ -1,5 +1,7 @@
 import csv 
 from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
 from django.http import HttpResponse,Http404,JsonResponse
 from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
@@ -8,7 +10,7 @@ from django.contrib import messages
 from django.db import transaction
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
-    StudentCourseForm, TeacherCourseForm, 
+    StudentEditForm, UserEditForm, 
     HourDateCourseForm, AbsentDetailsForm,
     UserForm,CSVUploadForm
 )
@@ -105,6 +107,33 @@ def upload_students(request):
         form = CSVUploadForm()
     
     return render(request, 'attendance/upload_students.html', {'form': form})
+
+@login_required
+def remove_student(request, id):
+    student = get_object_or_404(Student, id=id)
+    
+    # Optionally check if the user has permissions to delete the student
+    student.delete()
+    
+    return redirect('student_list')
+
+@login_required
+def edit_student(request, id):
+    student = get_object_or_404(Student, id=id)
+    teacher = student.programme.department.teachers.filter(user=request.user).first()  # Use 'teachers' instead of 'teacher_set'
+    
+    if not teacher:
+        return redirect('student_list')  # If the teacher isn't part of the student's department, redirect
+
+    if request.method == 'POST':
+        form = StudentForm(request.POST, instance=student, teacher=teacher)
+        if form.is_valid():
+            form.save()
+            return redirect('student_list')  # Redirect to the student list after saving
+    else:
+        form = StudentForm(instance=student, teacher=teacher)
+    
+    return render(request, 'attendance/edit_student.html', {'form': form, 'student': student})
 
 
 @login_required
@@ -216,6 +245,69 @@ def upload_teachers(request):
 
 
 @login_required
+@user_passes_test(HoD_group_required)
+def edit_teacher(request, teacher_id):
+    teacher = get_object_or_404(Teacher, id=teacher_id)  # Get the teacher instance by id
+    user = teacher.user  # Get the related User instance
+
+    if request.method == 'POST':
+        user_form = UserEditForm(request.POST, instance=user)
+        teacher_form = TeacherForm(request.POST, instance=teacher)
+
+        if user_form.is_valid() and teacher_form.is_valid():
+            user_form.save()
+            teacher_form.save()
+            messages.success(request, f"Your profile has been updated successfully.")
+            return redirect('teacher_list')
+
+    else:
+        user_form = UserEditForm(instance=user)
+        teacher_form = TeacherForm(instance=teacher)
+
+    return render(request, 'attendance/edit_teacher.html', {
+        'user_form': user_form,
+        'teacher_form': teacher_form,
+    })
+
+@login_required
+def change_password(request, teacher_id):
+    teacher = get_object_or_404(Teacher, id=teacher_id)
+    user = teacher.user  # Access the associated user object
+
+    if request.method == 'POST':
+        form = PasswordChangeForm(user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)  # Keep the user logged in after password change
+            messages.success(request, 'Your password has been successfully updated!')
+            return redirect('teacher_list')  # Redirect to teacher list after successful password change
+    else:
+        form = PasswordChangeForm(user)
+
+    return render(request, 'attendance/change_password.html', {'form': form, 'teacher': teacher})
+
+@login_required
+@user_passes_test(HoD_group_required)
+def delete_teacher(request, teacher_id):
+    # Get the Teacher object
+    teacher = get_object_or_404(Teacher, id=teacher_id)
+
+    try:
+        with transaction.atomic():
+            # Delete the associated user
+            user = teacher.user
+            user.delete()  # This will delete the user from the User model
+
+            # Delete the Teacher record
+            teacher.delete()
+
+        messages.success(request, f"Teacher '{teacher.user.first_name}' and associated user have been deleted successfully.")
+    except Exception as e:
+        messages.error(request, f"Error deleting teacher '{teacher.user.first_name}': {e}")
+
+    return redirect('teacher_list')
+
+@login_required
 def course_list(request):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
@@ -241,6 +333,16 @@ def course_list(request):
         'courses': courses,
         'course_students': course_students if user.groups.filter(name='HoD').exists() else None,
     })
+
+def get_assigned_students(request, course_id):
+    students = StudentCourse.objects.filter(course_id=course_id).select_related('student__programme')
+    students_data = [{
+        'name': student.student.name,
+        'university_register_number': student.student.university_register_number,
+        'programme': student.student.programme.name  # Assuming 'name' is the field in Programme
+    } for student in students]
+    
+    return JsonResponse({'students': students_data})
 
 # View for managing Course
 def add_course(request):
