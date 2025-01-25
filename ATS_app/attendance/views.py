@@ -250,36 +250,6 @@ def course_list(request):
 
 
 
-@login_required
-def assign_teacher(request, course_id):
-    course = get_object_or_404(Course, id=course_id)
-    teacher = request.user.teacher
-
-    # Handle assigning teacher logic
-    if not TeacherCourse.objects.filter(course=course, teacher=teacher).exists():
-        TeacherCourse.objects.create(course=course, teacher=teacher)
-        messages.success(request, f"Teacher {teacher.user.first_name} assigned to the course {course.name}.")
-    else:
-        messages.warning(request, f"Teacher {teacher.user.first_name} is already assigned to the course {course.name}.")
-    
-    return redirect('course_list')
-
-@login_required
-def remove_teacher(request, course_id):
-    course = get_object_or_404(Course, id=course_id)
-    teacher = request.user.teacher
-
-    # Handle removing teacher logic
-    teacher_course = TeacherCourse.objects.filter(course=course, teacher=teacher).first()
-    if teacher_course:
-        teacher_course.delete()
-        messages.success(request, f"Teacher {teacher.user.first_name} removed from the course {course.name}.")
-    else:
-        messages.warning(request, f"Teacher {teacher.user.first_name} is not assigned to the course {course.name}.")
-    
-    return redirect('course_list')
-
-
 # View for managing Course
 def course_form_view(request):
     if request.method == 'POST':

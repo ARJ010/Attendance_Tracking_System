@@ -17,8 +17,9 @@
             <th>Course Name</th>
             <th>Course Code</th>
             <th>Department</th>
-            <th>Assigned Teachers</th>
             {% if is_hod %}
+            <th>Assigned Teachers</th>
+
               <th>Actions</th>
             {% endif %}
           </tr>
@@ -29,18 +30,18 @@
               <td>{{ course.name }}</td>
               <td>{{ course.code }}</td>
               <td>{{ course.department.name }}</td>
+              {% if is_hod %}
               <td>
                 {% for teacher_course in course.teachercourse_set.all %}
                   {{ teacher_course.teacher.user.first_name }}{% if not forloop.last %}, {% endif %}
                 {% endfor %}
               </td>
-              {% if is_hod %}
                 <td>
-                    <form method="POST" action="{% url 'assign_teacher' course.id %}" style="display:inline;">
+                    <form method="POST" action="#" style="display:inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success btn-sm">Assign Teacher</button>
                     </form>
-                    <form method="POST" action="{% url 'remove_teacher' course.id %}" style="display:inline;">
+                    <form method="POST" action="#" style="display:inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-danger btn-sm">Remove Assignment</button>
                     </form>
