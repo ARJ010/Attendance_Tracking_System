@@ -105,7 +105,7 @@
                             {% if course in student_courses_map|get_item:student %}
                             checked
                             {% endif %}>
-                        {{ course.code }} - {{ course.department }}
+                            {{ course.name }} - {{ course.code }}
                     </label>
                 {% endfor %}
             </div>
