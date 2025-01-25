@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Teacher List{% endblock %}
+
+{% block content %}
+  <h2>Teacher List</h2>
+
+  <div class="mb-3">
+    {% if is_hod %}
+        <a href="{% url 'register_teacher' %}" class="btn btn-primary">Add Teacher</a>
+        <a href="{% url 'upload_teachers' %}" class="btn btn-secondary">Bulk Add Teachers</a>
+    {% endif %}
+</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Department</th>
+        <th>Mobile Number</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for teacher in teachers %}
+        <tr>
+          <td>{{ teacher.user.first_name }}</td>
+          <td>{{ teacher.user.username }}</td>
+          <td>{{ teacher.user.email }}</td>
+          <td>{{ teacher.department.name }}</td>
+          <td>{{ teacher.phone_number }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5">No teachers found.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

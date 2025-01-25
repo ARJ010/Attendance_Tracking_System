@@ -6,14 +6,26 @@ from .models import (
     StudentCourse, 
     TeacherCourse, 
     HourDateCourse, 
-    AbsentDetails
+    AbsentDetails,
+    Programme,
+    Department
 )
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'roll_number', 'university_register_number', 'admission_number', 'department', 'programme')
-    search_fields = ('name', 'roll_number', 'university_register_number', 'admission_number')
-    list_filter = ('department', 'programme')
+    list_display = ('id', 'name', 'university_register_number', 'admission_number', 'programme')
+    search_fields = ('name', 'university_register_number', 'admission_number')
+    list_filter = ('programme',)
+
+@admin.register(Programme)
+class ProgrammeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name')
+    search_fields = ('name',)
+
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name')
+    search_fields = ('name',)
 
 @admin.register(Teacher)
 class TeacherAdmin(admin.ModelAdmin):

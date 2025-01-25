@@ -1,14 +1,29 @@
 from django.contrib.auth.models import User
 from django.db import models
 
+# Department Table
+class Department(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.name
+
+
+# Programme Table
+class Programme(models.Model):
+    name = models.CharField(max_length=255)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="programmes")
+
+    def __str__(self):
+        return f"{self.name} ({self.department.name})"
+
+
 # Student Table
 class Student(models.Model):
     name = models.CharField(max_length=255)
-    roll_number = models.CharField(max_length=50, unique=True)
     university_register_number = models.CharField(max_length=50, unique=True)
     admission_number = models.CharField(max_length=50, unique=True)
-    department = models.CharField(max_length=100)
-    programme = models.CharField(max_length=255)
+    programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name="students")
 
     def __str__(self):
         return self.name
@@ -17,7 +32,7 @@ class Student(models.Model):
 # Teacher Table
 class Teacher(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)  # Link to default User model
-    department = models.CharField(max_length=100)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="teachers")
     phone_number = models.CharField(max_length=15, blank=True)
 
     def __str__(self):
@@ -30,6 +45,7 @@ class Course(models.Model):
     code = models.CharField(max_length=50, unique=True)
     credits = models.IntegerField()
     year_offered = models.IntegerField()
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="courses")
 
     def __str__(self):
         return self.name

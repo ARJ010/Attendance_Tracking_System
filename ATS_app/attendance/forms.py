@@ -1,71 +1,51 @@
 from django import forms
-from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
+from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
-class UserForm(UserCreationForm):
-    """Form for the User model."""
+class UserForm(forms.ModelForm):
+    password = forms.CharField(widget=forms.PasswordInput, required=True)
+
     class Meta:
         model = User
-        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
+        fields = ['username', 'first_name', 'last_name', 'email', 'password']
 
 class TeacherForm(forms.ModelForm):
-    """Form for the Teacher model."""
     class Meta:
         model = Teacher
         fields = ['department', 'phone_number']
 
-class TeacherRegistrationForm(forms.Form):
-    """Combined form for User and Teacher."""
-    user_form = UserForm(prefix='user')
-    teacher_form = TeacherForm(prefix='teacher')
 
-    def save(self, commit=True):
-        """Save the User and Teacher model instances."""
-        user_form = self.user_form
-        teacher_form = self.teacher_form
-
-        if user_form.is_valid() and teacher_form.is_valid():
-            # Save the User instance
-            user = user_form.save(commit=commit)
-
-            # Save the Teacher instance
-            teacher = teacher_form.save(commit=False)
-            teacher.user = user
-            if commit:
-                teacher.save()
-
-            return teacher
-        return None
-
-
+from django import forms
+from .models import Student, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
 
 # Form for creating/updating a Student
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        fields = ['name', 'roll_number', 'university_register_number', 'admission_number', 'department', 'programme']
-        widgets = {
-            'name': forms.TextInput(attrs={'placeholder': 'Enter full name'}),
-            'roll_number': forms.TextInput(attrs={'placeholder': 'Enter roll number'}),
-            'university_register_number': forms.TextInput(attrs={'placeholder': 'Enter university register number'}),
-            'admission_number': forms.TextInput(attrs={'placeholder': 'Enter admission number'}),
-            'department': forms.TextInput(attrs={'placeholder': 'Enter department'}),
-            'programme': forms.TextInput(attrs={'placeholder': 'Enter programme'}),
-        }
+        fields = ['name', 'university_register_number', 'admission_number', 'programme']
+    
+    def __init__(self, *args, **kwargs):
+        # Get the currently logged-in teacher's department
+        teacher = kwargs.pop('teacher', None)  # Pass the teacher as an argument to the form
+        super().__init__(*args, **kwargs)
 
+        if teacher:
+            # Filter programmes based on teacher's department
+            self.fields['programme'].queryset = Programme.objects.filter(department=teacher.department)
 
 
 # Form for creating/updating a Course
 class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
-        fields = ['name', 'code', 'credits', 'year_offered']
+        fields = ['name', 'code', 'credits', 'year_offered', 'department']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Enter course name'}),
             'code': forms.TextInput(attrs={'placeholder': 'Enter course code'}),
             'credits': forms.NumberInput(attrs={'placeholder': 'Enter number of credits'}),
             'year_offered': forms.NumberInput(attrs={'placeholder': 'Enter year offered'}),
+            'department': forms.Select(attrs={'placeholder': 'Select department'}),
         }
 
 
@@ -97,6 +77,7 @@ class HourDateCourseForm(forms.ModelForm):
         model = HourDateCourse
         fields = ['teacher_course', 'date', 'hour']
         widgets = {
+            'teacher_course': forms.Select(attrs={'placeholder': 'Select Teacher-Course'}),
             'date': forms.DateInput(attrs={'type': 'date'}),
             'hour': forms.TextInput(attrs={'placeholder': 'Enter hour (e.g., 1st Hour, 2nd Hour)'}),
         }
@@ -104,11 +85,16 @@ class HourDateCourseForm(forms.ModelForm):
 
 # Form for managing Absent Details
 class AbsentDetailsForm(forms.ModelForm):
+
     class Meta:
         model = AbsentDetails
         fields = ['hour_date_course', 'student', 'status']
         widgets = {
             'hour_date_course': forms.Select(attrs={'placeholder': 'Select Hour-Date-Course'}),
             'student': forms.Select(attrs={'placeholder': 'Select student'}),
-            'status': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'status': forms.Select(choices=[(False, 'Absent'), (True, 'Present')]),
         }
+
+
+class CSVUploadForm(forms.Form):
+    csv_file = forms.FileField()
