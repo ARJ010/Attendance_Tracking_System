@@ -726,7 +726,85 @@ def attendance_report(request, course_id):
 
     return render(request, 'attendance/report.html', context)
 
+def student_individual_report(request, student_id):
+    # Fetch the student and their enrolled courses
+    student = Student.objects.get(id=student_id)
+    student_courses = StudentCourse.objects.filter(student=student)
+    
+    # List of courses the student is enrolled in
+    courses = [sc.course for sc in student_courses]
+    
+    # Get attendance records for the student
+    attendance_data = []
+    total_hours = 0
+    total_present = 0
+    total_absent = 0
+    total_course_hours = 0  # Total hours across all courses
+    total_attended_hours = 0  # Total hours the student was present across all courses
 
+    # Iterate over each course the student is enrolled in
+    for course in courses:
+        course_data = {
+            'course': course,
+            'attendance_per_day': [],
+            'total_hours': 0,
+            'total_present': 0,
+            'total_absent': 0,
+            'attendance_percentage': 0,
+        }
 
+        # Fetch the class sessions for the course, ordered by date
+        sessions = HourDateCourse.objects.filter(course=course).order_by('date')
 
+        for session in sessions:
+            # Check if there is an attendance record for this student for this session
+            attendance_record = AbsentDetails.objects.filter(student=student, hour_date_course=session).first()
+            
+            # Calculate attendance status
+            if attendance_record:
+                status = 'Present' if attendance_record.status else 'Absent'
+                if attendance_record.status:
+                    course_data['total_present'] += 1
+                    total_attended_hours += 1  # Increase the attended hours for the student
+                else:
+                    course_data['total_absent'] += 1
+            else:
+                status = 'Present'  # Assume present if no record exists
+                course_data['total_present'] += 1
+                total_attended_hours += 1  # Assume student is present if no record exists
 
+            course_data['attendance_per_day'].append({
+                'date': session.date,
+                'status': status,
+                'hour': session.hour,
+            })
+            course_data['total_hours'] += 1
+        
+        # Calculate attendance percentage for the course
+        if course_data['total_hours'] > 0:
+            course_data['attendance_percentage'] = (course_data['total_present'] / course_data['total_hours']) * 100
+        
+        # Add the course data to the attendance data
+        attendance_data.append(course_data)
+
+        # Accumulate total course hours and total attended hours for the entire student
+        total_course_hours += course_data['total_hours']
+        total_present += course_data['total_present']
+        total_absent += course_data['total_absent']
+
+    # Calculate overall attendance percentage for the student
+    if total_course_hours > 0:
+        overall_attendance_percentage = (total_attended_hours / total_course_hours) * 100
+    else:
+        overall_attendance_percentage = 0
+
+    context = {
+        'student': student,
+        'attendance_data': attendance_data,
+        'total_hours': total_course_hours,
+        'total_present': total_present,
+        'total_absent': total_absent,
+        'overall_attendance_percentage': round(overall_attendance_percentage, 2),
+    }
+
+    return render(request, 'attendance/student_report.html', context)

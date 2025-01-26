@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ student.name }} - Attendance Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .summary-table {
+            margin-top: 20px;
+        }
+        .summary-table td {
+            padding: 10px;
+            text-align: left;
+        }
+        @media print {
+        .footer button {
+            display: none;
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Attendance Report for {{ student.name }}</h1>
+        <p>Roll No: {{ student.university_register_number }} | Admission No: {{ student.admission_number }}</p>
+    </div>
+
+    <!-- Loop through each course -->
+    {% for course_data in attendance_data %}
+    <h2>{{ course_data.course.name }} ({{ course_data.course.code }})</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Sl No</th>
+                <th>Date</th>
+                <th>Hour</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for day in course_data.attendance_per_day %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ day.date }}</td>
+                <td>{{ day.hour }}</td>
+                {% if day.status == 'Present' %}
+                    <td><span style='font-size:25px; color: darkgreen;'>&#10004;</span></td>
+                {%else%}
+                    <td><span style='font-size:25px;color: darkred;'>&#10006;</span></td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="summary-table">
+        <table>
+            <tr>
+                <td>Total Hours</td>
+                <td>{{ course_data.total_hours }}</td>
+            </tr>
+            <tr>
+                <td>Total Present</td>
+                <td>{{ course_data.total_present }}</td>
+            </tr>
+            <tr>
+                <td>Total Absent</td>
+                <td>{{ course_data.total_absent }}</td>
+            </tr>
+            <tr>
+                <td>Attendance Percentage</td>
+                <td>{{ course_data.attendance_percentage }}%</td>
+            </tr>
+        </table>
+    </div>
+    {% endfor %}
+
+    <div class="footer">
+        <p>Overall Attendance</p>
+        <table class="summary-table">
+            <tr>
+                <td>Total Hours</td>
+                <td>{{ total_hours }}</td>
+            </tr>
+            <tr>
+                <td>Total Present</td>
+                <td>{{ total_present }}</td>
+            </tr>
+            <tr>
+                <td>Total Absent</td>
+                <td>{{ total_absent }}</td>
+            </tr>
+            <tr>
+                <td>Overall Attendance Percentage</td>
+                <td>{{ overall_attendance_percentage }}%</td>
+            </tr>
+        </table>
+    </div>
+    <div class="footer print-button">
+        <button onclick="window.print()">Print</button>
+    </div>
+</body>
+</html>
