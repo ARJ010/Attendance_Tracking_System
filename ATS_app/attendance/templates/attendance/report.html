@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Report</title>
+    <style>
+        body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    table, th, td {
+        border: 1px solid black;
+    }
+    th, td {
+        text-align: center; /* Default center alignment for all columns */
+        padding: 8px;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    .header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .header h1, .header h2 {
+        margin: 5px;
+    }
+    .footer {
+        text-align: center;
+        margin-top: 20px;
+    }
+    /* Specific style for the Name column */
+    th:nth-child(3), td:nth-child(3) {
+        text-align: left; /* Left align the Name column */
+    }
+
+    /* Style for the information table */
+    /* Style for the information table */
+    .info-table-wrapper {
+        width: 60%;  /* Set the width of the wrapper to 60% of the page width */
+        max-width: 800px;  /* Limit the max width of the table */
+        margin: 0 auto;  /* Center the wrapper horizontally */
+    }
+
+    .info-table {
+        width: 100%;  /* Make the table take the full width of its wrapper */
+        border-collapse: collapse;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+    }
+
+    .info-table th,
+    .info-table td {
+        text-align: left;
+        padding: 10px;
+        font-size: 16px;
+    }
+
+    .info-table th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+        color: #333;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .info-table td {
+        background-color: #fafafa;
+        font-weight: bolder;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .info-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Add some spacing to the header section */
+    .header h1, .header h2 {
+        margin: 5px;
+    }
+
+    .footer {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    /* Media query for printing */
+    @media print {
+            /* Stretch the table to full width when printing */
+            .info-table-wrapper {
+                width: 100%;
+                max-width: none; /* Remove max width */
+                margin: 0;
+            }
+
+            .info-table {
+                width: 100%;  /* Stretch the table to fit the entire width of the page */
+            }
+
+            /* Hide the print button in print version */
+            .footer button {
+                display: none;
+            }
+
+            /* Ensure header and footer are visible in print */
+            .header, .footer {
+                display: block;
+            }
+        }
+
+
+
+    /* Hide the print button when printing */
+    @media print {
+        .footer button {
+            display: none;
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Nehru Arts and Science College, Kanhangad</h1>
+        <h2>NASC-SMS-FYUGP - Attendance Entry</h2>
+    </div>
+    <div class="info-table-wrapper">
+        <table class="info-table">
+            <tbody>
+                <tr>
+                    <th>Course</th>
+                    <td>{{ course.name }} ({{ course.code }})</td>
+                </tr>
+                <tr>
+                    <th>Total Hours Taken</th>
+                    <td>{{ total_hours }}</td>
+                </tr>
+                <tr>
+                    <th>Date & Time</th>
+                    <td>{{ date_time|date:"Y-m-d H:i:s" }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Sl No</th>
+                <th>Reg. No</th>
+                <th>Name</th>
+                <th>No. of Hours Present</th>
+                <th>% of Attendance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for data in attendance_data %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ data.student.university_register_number }}</td>
+                <td>{{ data.student.name }}</td>
+                <td>{{ data.total_present }}</td>
+                <td>{{ data.attendance_percentage }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="footer">
+        <button onclick="window.print()">Print</button>
+        <p>&copy; {{ date_time.year }} Nehru Arts and Science College</p>
+    </div>
+</body>
+</html>

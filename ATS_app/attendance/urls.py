@@ -30,4 +30,5 @@ urlpatterns = [
     path('attendance/<int:student_id>/<int:course_id>/', views.view_attendance, name='view_attendance'),
     path('hour-date-course/', views.hour_date_course_form_view, name='hour_date_course_form'),
     path('absent-details/', views.absent_details_form_view, name='absent_details_form'),
+    path('attendance/report/<int:course_id>/', views.attendance_report, name='attendance_report'),
 ]

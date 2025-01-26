@@ -1,5 +1,6 @@
 import csv,json
 from datetime import date
+from datetime import datetime
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.forms import PasswordChangeForm
 from django.views.decorators.csrf import csrf_exempt
@@ -665,5 +666,67 @@ def absent_details_form_view(request):
     else:
         form = AbsentDetailsForm()
     return render(request, 'attendance/absent_details_form.html', {'form': form})
+
+
+
+
+
+def attendance_report(request, course_id):
+    course = Course.objects.get(id=course_id)
+    total_hours = HourDateCourse.objects.filter(course=course).count()
+
+    # Fetch students from the StudentCourse table, which links students to courses
+    student_courses = StudentCourse.objects.filter(course=course)
+    students = Student.objects.filter(id__in=student_courses.values_list('student_id', flat=True))
+
+    # Fetch attendance records for the course
+    attendance_records = AbsentDetails.objects.filter(hour_date_course__course=course)
+
+    # Get the current date and time
+    date_time = datetime.now()
+
+    attendance_data = []
+    for student in students:
+        total_present = 0
+        total_absent = 0
+        
+        # Iterate through each HourDateCourse for the course
+        for hour_date_course in HourDateCourse.objects.filter(course=course):
+            # Check if there is an attendance record for the student for this hour_date_course
+            attendance_record = attendance_records.filter(student=student, hour_date_course=hour_date_course).first()
+            
+            if attendance_record:  # If there is an attendance record
+                if attendance_record.status:  # Mark present if status is True
+                    total_present += 1
+                else:  # Mark absent if status is False
+                    total_absent += 1
+            else:  # If no attendance record exists, consider the student as present
+                total_present += 1
+        
+        # Calculate attendance percentage
+        attendance_percentage = (total_present / total_hours) * 100 if total_hours else 0
+
+        # Add grace hours logic if applicable
+        attendance_with_grace = attendance_percentage  # Adjust this if grace hours apply
+
+        attendance_data.append({
+            "student": student,
+            "total_present": total_present,
+            "total_absent": total_absent,
+            "attendance_percentage": round(attendance_percentage, 2),
+            "attendance_with_grace": round(attendance_with_grace, 2),
+        })
+
+    context = {
+        "course": course,
+        "total_hours": total_hours,
+        "attendance_data": attendance_data,
+        "date_time": date_time,  # Pass the current date and time to the template
+    }
+
+    return render(request, 'attendance/report.html', context)
+
+
+
 
 
