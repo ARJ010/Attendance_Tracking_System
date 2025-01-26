@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Daily Attendance Report{% endblock %}
+
+{% block content %}
+<h2>Daily Attendance Report</h2>
+
+<form method="post" class="mb-4">
+    {% csrf_token %}
+    <label for="date" class="form-label">Select Date:</label>
+    <input type="date" name="date" id="date" class="form-control w-50 d-inline" required>
+    <button type="submit" class="btn btn-primary">Generate Report</button>
+</form>
+
+{% if attendance %}
+    <h3>Attendance for {{ attendance.0.date }}</h3>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Hour</th>
+                <th>Course</th>
+                <th>Teacher</th>
+                <th>Absent Students</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in attendance %}
+            <tr>
+                <td>{{ record.hour }}</td>
+                <td>{{ record.course.name }}</td>
+                <td>{{ record.teacher.user.get_full_name }}</td>
+                <td>
+                    {% for absent in record.absentdetails_set.all %}
+                        {{ absent.student.name }} ({{ absent.student.university_register_number }}),
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No attendance records found for the selected date.</p>
+{% endif %}
+{% endblock %}

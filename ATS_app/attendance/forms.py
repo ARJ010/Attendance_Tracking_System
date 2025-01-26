@@ -116,9 +116,8 @@ class TeacherCourseForm(forms.ModelForm):
 class HourDateCourseForm(forms.ModelForm):
     class Meta:
         model = HourDateCourse
-        fields = ['teacher_course', 'date', 'hour']
+        fields = ['date', 'hour']
         widgets = {
-            'teacher_course': forms.Select(attrs={'placeholder': 'Select Teacher-Course'}),
             'date': forms.DateInput(attrs={'type': 'date'}),
             'hour': forms.TextInput(attrs={'placeholder': 'Enter hour (e.g., 1st Hour, 2nd Hour)'}),
         }

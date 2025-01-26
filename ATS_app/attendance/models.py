@@ -110,12 +110,22 @@ class TeacherCourse(models.Model):
         return f"{self.teacher.user.username} - {self.course.name} - {self.year}"
 
 
-# Hour-Date-Course Table
 class HourDateCourse(models.Model):
-    teacher_course = models.ForeignKey(TeacherCourse, on_delete=models.CASCADE)
+    HOUR_CHOICES = [
+        (1, 'Hour 1'),
+        (2, 'Hour 2'),
+        (3, 'Hour 3'),
+        (4, 'Hour 4'),
+        (5, 'Hour 5'),
+    ]
+    course = models.ForeignKey("Course", on_delete=models.CASCADE)
+    teacher = models.ForeignKey("Teacher", on_delete=models.CASCADE)
     date = models.DateField()
-    hour = models.PositiveSmallIntegerField()  # Hour (1-5)
+    hour = models.PositiveSmallIntegerField(choices=HOUR_CHOICES)  # Restrict to valid choices
     year = models.PositiveIntegerField(editable=False)  # Year is non-editable
+
+    class Meta:
+        unique_together = ('course', 'date', 'hour')  # Ensure only one teacher can mark attendance
 
     def save(self, *args, **kwargs):
         # Calculate the year based on the date field
@@ -123,7 +133,9 @@ class HourDateCourse(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.teacher_course} - {self.date} Hour {self.hour} - Year {self.year}"
+        return f"{self.teacher.user.first_name} {self.teacher.user.last_name} - {self.course.name} - {self.date} Hour {self.hour} - Year {self.year}"
+
+
 
 
 
@@ -134,7 +146,7 @@ class AbsentDetails(models.Model):
     status = models.BooleanField(default=False)  # False for absent, True for present
 
     class Meta:
-        unique_together = ('hour_date_course', 'student')
+        unique_together = ('student', 'hour_date_course')
 
     def __str__(self):
         return f"{self.student.name} - {self.hour_date_course} - {'Present' if self.status else 'Absent'}"

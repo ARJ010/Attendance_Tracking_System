@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Course-Wise Attendance Report{% endblock %}
+
+{% block content %}
+<h2>Course-Wise Attendance Report</h2>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Course</th>
+            <th>Hours Taken</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for course in course_attendance %}
+        <tr>
+            <td>{{ course.course }}</td>
+            <td>{{ course.hours_taken }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if not course_attendance %}
+    <p>No attendance records found.</p>
+{% endif %}
+{% endblock %}

@@ -24,6 +24,10 @@ urlpatterns = [
     path('remove-teachers/', views.remove_teachers, name='remove_teachers'),
     path('student-course/', views.student_course_assign, name='student_course_assign'),
     path('teacher-course/', views.teacher_course_assign, name='teacher_course_assign'),
+    path('take_attendance/<int:course_id>/', views.take_attendance, name='take_attendance'),
+    path('report/daily/', views.daily_report, name='daily_report'),
+    path('report/course/', views.course_report, name='course_report'),
+    path('attendance/<int:student_id>/<int:course_id>/', views.view_attendance, name='view_attendance'),
     path('hour-date-course/', views.hour_date_course_form_view, name='hour_date_course_form'),
     path('absent-details/', views.absent_details_form_view, name='absent_details_form'),
 ]

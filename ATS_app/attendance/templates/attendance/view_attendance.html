@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance for {{ student.name }} - {{ course.name }}</title>
+</head>
+<body>
+    <h1>Attendance for {{ student.name }} in {{ course.name }}</h1>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Hour</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for attendance in attendance_details %}
+                <tr>
+                    <td>{{ attendance.hour_date_course.date }}</td>
+                    <td>Hour {{ attendance.hour_date_course.hour }}</td>
+                    <td>
+                        {% if attendance.status is None %}
+                            No record
+                        {% elif attendance.status %}
+                            Present
+                        {% else %}
+                            Absent
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <br>
+    <a href="{% url 'course_list' %}">Back to Home</a>
+</body>
+</html>

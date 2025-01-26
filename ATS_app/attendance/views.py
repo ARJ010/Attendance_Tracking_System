@@ -1,11 +1,14 @@
-import csv 
+import csv,json
+from datetime import date
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.forms import PasswordChangeForm
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
 from django.http import HttpResponse,Http404,JsonResponse
 from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db import IntegrityError
 from django.contrib import messages
 from django.db import transaction
 from .forms import (
@@ -336,7 +339,10 @@ def course_list(request):
 
 def get_assigned_students(request, course_id):
     students = StudentCourse.objects.filter(course_id=course_id).select_related('student__programme')
+    
     students_data = [{
+        'id': student.student.id,  # Include the student's ID
+        'c_id': course_id,
         'name': student.student.name,
         'university_register_number': student.student.university_register_number,
         'programme': student.student.programme.name  # Assuming 'name' is the field in Programme
@@ -350,7 +356,7 @@ def add_course(request):
         form = CourseForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('course_form')
+            return redirect('course_list')
     else:
         form = CourseForm()
     return render(request, 'attendance/course_form.html', {'form': form})
@@ -496,8 +502,6 @@ def get_assigned_courses(request, student_id):
     return JsonResponse({'courses': course_data})
 
 
-
-
 def remove_courses(request):
     if request.method == 'POST':
         student_id = request.POST.get('student_id')
@@ -521,6 +525,123 @@ def remove_courses(request):
         return redirect('student_course_assign')  # Redirect back to the form page
 
 
+
+def take_attendance(request, course_id):
+    # Get the logged-in teacher
+    teacher = request.user.teacher  # Assuming the user is a teacher
+
+    # Get the course assigned to the teacher
+    course = get_object_or_404(Course, id=course_id)
+
+    # Ensure that the logged-in teacher is assigned to the course
+    if not TeacherCourse.objects.filter(teacher=teacher, course=course).exists():
+        messages.error(request, "You are not authorized to take attendance for this course.")
+        return redirect('course_list')  # Redirect if the teacher is not authorized
+
+    # Get all students assigned to this course
+    student_courses = StudentCourse.objects.filter(course=course)
+    students = [student_course.student for student_course in student_courses]
+
+    if request.method == 'POST':
+        # Get the selected date (default today)
+        attendance_date = request.POST.get('date', str(date.today()))
+        attendance_date = date.fromisoformat(attendance_date)
+
+        # Get the selected hours (from checkboxes)
+        selected_hours = request.POST.getlist('hours')
+
+        # Loop through the selected hours and create HourDateCourse entries for each
+        for hour in selected_hours:
+            try:
+                # Try to create the HourDateCourse entry
+                hour_date_course = HourDateCourse.objects.create(
+                    course=course,
+                    teacher=teacher,
+                    date=attendance_date,
+                    hour=int(hour),
+                )
+
+                messages.success(request, f"Attendance successfully recorded for Hour {hour}")
+            except IntegrityError:
+                # Handle the case where the HourDateCourse entry already exists
+                existing_record = HourDateCourse.objects.get(course=course, date=attendance_date, hour=int(hour))
+                existing_teacher = existing_record.teacher
+
+                # Get teacher details (first name, last name, phone number) from the related user model
+                teacher_full_name = f"{existing_teacher.user.first_name} {existing_teacher.user.last_name}"
+                teacher_phone = existing_teacher.phone_number
+
+                # Format the message with teacher name and phone
+                messages.warning(request, f"Attendance already taken By {teacher_full_name} ({teacher_phone}) in Hour {hour} on {attendance_date}")
+                continue  # Skip this hour and move to the next one
+
+            # Iterate through each student and check if they are marked as absent
+            for student in students:
+                if f'students_{student.id}' in request.POST:
+                    # Create or update the AbsentDetails record for the student
+                    AbsentDetails.objects.update_or_create(
+                        hour_date_course=hour_date_course,
+                        student=student,
+                        defaults={'status': False}  # False means absent
+                    )
+
+        
+        return redirect('course_list')  # Redirect to the course list or a success page
+
+    return render(request, 'attendance/take_attendance.html', {
+        'course': course,
+        'students': students,
+        'today': date.today(),
+        'hours': range(1, 6),  # Provide hours from 1 to 5
+    })
+
+
+def daily_report(request):
+    if request.method == 'POST':
+        selected_date = request.POST.get('date')
+        attendance = HourDateCourse.objects.filter(date=selected_date)
+        return render(request, 'attendance/daily_report.html', {'attendance': attendance})
+    return render(request, 'attendance/daily_report.html')
+
+def course_report(request):
+    courses = HourDateCourse.objects.values('course').distinct()
+    course_attendance = [
+        {
+            'course': course['course'],
+            'hours_taken': HourDateCourse.objects.filter(course=course['course']).count(),
+        }
+        for course in courses
+    ]
+    return render(request, 'attendance/course_report.html', {'course_attendance': course_attendance})
+
+
+def view_attendance(request, student_id, course_id):
+    # Get the student and course objects or return a 404 error if not found
+    student = get_object_or_404(Student, id=student_id)
+    course = get_object_or_404(Course, id=course_id)
+    
+    # Get the hour_date_course entries that correspond to this course
+    hour_date_courses = HourDateCourse.objects.filter(course=course)
+
+    # Get the attendance details (present/absent) for the student in the selected course
+    attendance_details = []
+    for hour_date_course in hour_date_courses:
+        attendance = AbsentDetails.objects.filter(
+            hour_date_course=hour_date_course,
+            student=student
+        ).first()  # Get the first attendance record, if any
+        status = attendance.status if attendance else None  # None if no record exists
+        attendance_details.append({
+            'hour_date_course': hour_date_course,
+            'status': status
+        })
+
+    # Render the attendance page with the relevant data
+    return render(request, 'attendance/view_attendance.html', {
+        'student': student,
+        'course': course,
+        'attendance_details': attendance_details
+    })
 
 # View for Hour-Date-Course
 def hour_date_course_form_view(request):
