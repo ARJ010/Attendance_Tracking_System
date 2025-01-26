@@ -126,13 +126,16 @@
             {% csrf_token %}
             <div class="courses-list">
                 {% for course in all_courses %}
-                    <label>
-                        <input type="checkbox" name="courses" value="{{ course.id }}" 
-                            {% if course in student_courses_map|get_item:student %}
-                            checked
-                            {% endif %}>
-                        {{ course.code }} - {{ course.department }}
-                    </label>
+                    <div>
+                        <input type="checkbox" 
+                               id="course_{{ course.id }}" 
+                               name="courses" 
+                               value="{{ course.id }}"
+                               {% if course in student_courses_map|get_item:student %}checked{% endif %}>
+                        <label for="course_{{ course.id }}">
+                            {{ course.code }} - {{ course.name }}
+                        </label>
+                    </div>
                 {% endfor %}
             </div>
             <input type="hidden" name="student_id" id="studentId">
