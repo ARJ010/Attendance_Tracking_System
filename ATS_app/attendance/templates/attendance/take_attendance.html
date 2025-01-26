@@ -2,8 +2,68 @@
 
 {% block title %}Take Attendance{% endblock %}
 
+{% block extra_head %}
+<style>
+    .custom-checkbox {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    
+    .custom-checkbox input[type="checkbox"] {
+        display: none; /* Hide the default checkbox */
+    }
+    
+    .custom-checkbox .custom-checkbox-icon {
+        width: 20px;
+        height: 20px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 8px;
+        background-color: white;
+        position: relative;
+    }
+    
+    .custom-checkbox .custom-checkbox-icon::before {
+        content: ''; /* The red X */
+        width: 12px;
+        height: 2px;
+        background-color: red;
+        transform: rotate(45deg);
+        position: absolute;
+        display: none; /* Hidden by default */
+    }
+    
+    .custom-checkbox .custom-checkbox-icon::after {
+        content: '';
+        width: 12px;
+        height: 2px;
+        background-color: red;
+        transform: rotate(-45deg);
+        position: absolute;
+        display: none; /* Hidden by default */
+    }
+    
+    .custom-checkbox input[type="checkbox"]:checked + .custom-checkbox-icon::before,
+    .custom-checkbox input[type="checkbox"]:checked + .custom-checkbox-icon::after {
+        display: block; /* Show the red X when checked */
+    }
+    
+    .custom-checkbox input[type="checkbox"]:checked + .custom-checkbox-icon {
+        border-color: red;
+        background-color: #ffe6e6;
+    }
+    
+    </style>
+{% endblock %}
+
+
+
 {% block content %}
-    <h2>Take Attendance for Course: {{ course.name }}</h2>
+    <h2>Mark Absences for Course: {{ course.name }}</h2>
     <form method="POST">
         {% csrf_token %}
         
@@ -28,16 +88,20 @@
 
         <!-- Student List with Absence Checkboxes -->
         <div class="form-group">
-            <h3>Students:</h3>
+            <h3>Mark the students who are absent:</h3>
             <ol>
                 {% for student in students %}
                     <li>
-                      <input type="checkbox" name="students_{{ student.id }}" value="absent" class="form-check-input">
-                        <label>{{ student.university_register_number }} - {{ student.name }}</label>
-                        <!-- Direct checkbox after student's name -->                    </li>
+                        <label class="custom-checkbox">
+                            <input type="checkbox" name="students_{{ student.id }}" value="absent" class="form-check-input">
+                            <span class="custom-checkbox-icon"></span>
+                            {{ student.university_register_number }} - {{ student.name }}
+                        </label>
+                    </li>
                 {% endfor %}
             </ol>
         </div>
+
 
         <button type="submit" class="btn btn-primary">Submit Attendance</button>
     </form>

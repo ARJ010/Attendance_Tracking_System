@@ -31,5 +31,6 @@ urlpatterns = [
     path('teacher/attendance/', views.teacher_attendance_list, name='teacher_attendance_list'),
     path('teacher/attendance/edit/<int:record_id>/', views.edit_attendance, name='edit_attendance'),
     path('teacher/attendance/remove/<int:record_id>/', views.remove_attendance, name='remove_attendance'),
-        path('department/<int:department_id>/', views.department_report, name='department_report'),
+    path('department/<int:department_id>/', views.department_report, name='department_report'),
+
 ]

@@ -949,3 +949,4 @@ def department_report(request, department_id):
     }
 
     return render(request, 'attendance/department.html', context)
+
