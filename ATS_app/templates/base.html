@@ -65,6 +65,13 @@
 
     <!-- Main Content -->
     <div class="container mt-4">
+        {% if messages %}
+        <div class="alert alert-warning">
+            {% for message in messages %}
+            <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% block content %}
         <!-- Content will be injected here -->
         {% endblock %}

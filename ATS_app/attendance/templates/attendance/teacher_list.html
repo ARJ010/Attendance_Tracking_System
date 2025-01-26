@@ -30,13 +30,29 @@
           <td>{{ teacher.user.email }}</td>
           <td>{{ teacher.phone_number }}</td>
           <td>
-            {% if is_hod or teacher.user == request.user %}
-              <!-- Display actions if user is HoD or if teacher is the logged-in user -->
-              <a href="{% url 'edit_teacher' teacher.id %}" class="btn btn-warning btn-sm">Edit</a>
-              <a href="{% url 'change_password' teacher.id %}" class="btn btn-info btn-sm">Change Password</a>
-            {% endif %}
             {% if is_hod %}
-              <a href="{% url 'delete_teacher' teacher.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
+                <!-- Actions for HoD (can reset and change password for themselves or any teacher) -->
+                <a href="{% url 'edit_teacher' teacher.id %}" class="btn btn-warning btn-sm">Edit</a>
+                
+                {% if teacher.user == request.user %}
+                    <!-- HoD can change their own password -->
+                    <a href="{% url 'change_password' teacher.id %}" class="btn btn-info btn-sm">Change Password</a>
+                    <!-- HoD can reset their own password -->
+                    <a href="{% url 'reset_password' teacher.id %}" class="btn btn-info btn-sm">Reset Password</a>
+                {% else %}
+                    <!-- HoD can reset password of other teachers -->
+                    <a href="{% url 'reset_password' teacher.id %}" class="btn btn-info btn-sm">Reset Password</a>
+                {% endif %}
+                
+                <!-- HoD can delete any teacher -->
+                <a href="{% url 'delete_teacher' teacher.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
+            {% else %}
+                <!-- Actions for a non-HoD teacher -->
+                {% if teacher.user == request.user %}
+                    <!-- Teacher can only edit and change their own password -->
+                    <a href="{% url 'edit_teacher' teacher.id %}" class="btn btn-warning btn-sm">Edit</a>
+                    <a href="{% url 'change_password' teacher.id %}" class="btn btn-info btn-sm">Change Password</a>
+                {% endif %}
             {% endif %}
           </td>
         </tr>

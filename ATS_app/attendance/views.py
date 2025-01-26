@@ -278,6 +278,28 @@ def edit_teacher(request, teacher_id):
     })
 
 @login_required
+@user_passes_test(HoD_group_required)
+def reset_password(request, teacher_id):
+    try:
+        # Get the Teacher instance by ID
+        teacher = get_object_or_404(Teacher, id=teacher_id)
+        
+        # Reset the password for the corresponding User
+        user = teacher.user  # Access the related user (one-to-one relationship)
+        user.set_password(f"{user.username}@123")
+        user.save()
+        
+        # Display success message
+        messages.success(request, f"Password for teacher {teacher.user.username} has been reset.")
+        
+    except Teacher.DoesNotExist:
+        # Handle the case if the teacher doesn't exist
+        messages.error(request, "Teacher not found.")
+    
+    # Redirect back to the admin page or any page you prefer
+    return HttpResponseRedirect(reverse('teacher_list'))  # Change to your admin page URL
+
+@login_required
 def change_password(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
     user = teacher.user  # Access the associated user object

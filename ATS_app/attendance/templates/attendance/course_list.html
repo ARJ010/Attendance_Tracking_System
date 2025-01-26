@@ -3,13 +3,6 @@
 {% block title %}Course List{% endblock %}
 
 {% block content %}
-{% if messages %}
-  <div class="alert alert-warning">
-    {% for message in messages %}
-      <p>{{ message }}</p>
-    {% endfor %}
-  </div>
-{% endif %}
     <h2>Department of {{ department }} (Courses)</h2>
     {% if is_hod %}
     <div class="mb-3">
