@@ -20,6 +20,15 @@ from .forms import (
     UserForm,CSVUploadForm
 )
 
+def calculate_year(current_date):
+    """
+    Calculate the academic year based on the date.
+    June 1 of a year to May 31 of the next year is considered the same academic year.
+    """
+    if current_date.month >= 6:  # From June to December
+        return current_date.year
+    else:  # From January to May
+        return current_date.year - 1
 
 
 def clean_name(name):
@@ -440,12 +449,20 @@ def assign_teachers(request):
         course_id = request.POST.get('course_id')
         teacher_ids = request.POST.getlist('teachers')  # Get selected teacher IDs
 
-        course = Course.objects.get(id=course_id)
-        
+        course = get_object_or_404(Course, id=course_id)
+        year = calculate_year(date.today())  # Use the calculate_year function
+
         # Create TeacherCourse records for the selected teachers
         for teacher_id in teacher_ids:
-            teacher = Teacher.objects.get(id=teacher_id)
-            TeacherCourse.objects.create(course=course, teacher=teacher)
+            teacher = get_object_or_404(Teacher, id=teacher_id)
+
+            # Check if the teacher is already assigned to the course for the current year
+            if TeacherCourse.objects.filter(course=course, teacher=teacher, year=year).exists():
+                # Use teacher.user.get_full_name() or another field for the teacher's name
+                messages.warning(request, f"Teacher {teacher.user.get_full_name()} is already assigned to the course {course.name} for the year {year}.")
+            else:
+                # Create the new TeacherCourse record if no duplicate exists
+                TeacherCourse.objects.create(course=course, teacher=teacher, year=year)
 
         return redirect('teacher_course_assign')  # Redirect to course list after saving
 
