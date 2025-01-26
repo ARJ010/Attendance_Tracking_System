@@ -23,7 +23,7 @@
                 <th>Admission Number</th>
                 <th>Programme</th>
                 {% if is_hod %}
-                <th>Actions</th>  <!-- Added Actions Column -->
+                <th>Actions</th>  <!-- Updated Actions Column -->
                 {% endif %}
             </tr>
         </thead>
@@ -39,6 +39,7 @@
                     <td>
                         <a href="{% url 'edit_student' student.id %}" class="btn btn-warning btn-sm">Edit</a>  <!-- Edit Button -->
                         <a href="{% url 'remove_student' student.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this student?')">Remove</a>  <!-- Remove Button with Confirmation -->
+                        <a href="{% url 'student_report' student.id %}" class="btn btn-success btn-sm">Report</a>  <!-- Report Button -->
                     </td>
                     {% endif %}
                 </tr>

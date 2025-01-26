@@ -39,7 +39,6 @@
             <td>
               <div class="mb-3">
                 <a href="{% url 'attendance_report' course.id %}" class="btn btn-success">Summary Report</a>
-                <a href="{% url 'course_report' %}" class="btn btn-success">Course Attendance Report</a>
               </div>            
             </td>
             </tr>
@@ -90,9 +89,7 @@
                           data.students.forEach(student => {
                               const listItem = document.createElement('li');
                               listItem.innerHTML = `
-                                  ${student.name} (${student.university_register_number}, ${student.programme})
-                                  <a href="/attendance/${student.id}/${student.c_id}/" class="btn btn-secondary btn-sm ml-2">View Report</a>
-                              `;
+                                  ${student.name} (${student.university_register_number}, ${student.programme})`;
                               studentList.appendChild(listItem);
                           });
                       } else {

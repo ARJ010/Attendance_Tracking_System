@@ -597,52 +597,6 @@ def take_attendance(request, course_id):
     })
 
 
-def daily_report(request):
-    if request.method == 'POST':
-        selected_date = request.POST.get('date')
-        attendance = HourDateCourse.objects.filter(date=selected_date)
-        return render(request, 'attendance/daily_report.html', {'attendance': attendance})
-    return render(request, 'attendance/daily_report.html')
-
-def course_report(request):
-    courses = HourDateCourse.objects.values('course').distinct()
-    course_attendance = [
-        {
-            'course': course['course'],
-            'hours_taken': HourDateCourse.objects.filter(course=course['course']).count(),
-        }
-        for course in courses
-    ]
-    return render(request, 'attendance/course_report.html', {'course_attendance': course_attendance})
-
-
-def view_attendance(request, student_id, course_id):
-    # Get the student and course objects or return a 404 error if not found
-    student = get_object_or_404(Student, id=student_id)
-    course = get_object_or_404(Course, id=course_id)
-    
-    # Get the hour_date_course entries that correspond to this course
-    hour_date_courses = HourDateCourse.objects.filter(course=course)
-
-    # Get the attendance details (present/absent) for the student in the selected course
-    attendance_details = []
-    for hour_date_course in hour_date_courses:
-        attendance = AbsentDetails.objects.filter(
-            hour_date_course=hour_date_course,
-            student=student
-        ).first()  # Get the first attendance record, if any
-        status = attendance.status if attendance else None  # None if no record exists
-        attendance_details.append({
-            'hour_date_course': hour_date_course,
-            'status': status
-        })
-
-    # Render the attendance page with the relevant data
-    return render(request, 'attendance/view_attendance.html', {
-        'student': student,
-        'course': course,
-        'attendance_details': attendance_details
-    })
 
 # View for Hour-Date-Course
 def hour_date_course_form_view(request):
@@ -728,5 +682,48 @@ def attendance_report(request, course_id):
 
 
 
+@login_required
+def student_report(request, student_id):
+    # Fetch the student
+    student = get_object_or_404(Student, id=student_id)
+    
+    # Fetch all courses assigned to the student
+    student_courses = StudentCourse.objects.filter(student=student)
+    
+    # Prepare attendance data for each course
+    attendance_summary = []
+    for student_course in student_courses:
+        course = student_course.course
+        
+        # Get all HourDateCourse records for this course
+        hour_date_courses = HourDateCourse.objects.filter(course=course)
+        total_hours_taken = hour_date_courses.count()
+        
+        # Count hours the student was present
+        total_hours_absent = AbsentDetails.objects.filter(
+            hour_date_course__in=hour_date_courses,
+            student=student,
+            status=False
+        ).count()
 
-
+        total_hours_present = total_hours_taken - total_hours_absent
+        
+        # Calculate the attendance percentage
+        percentage = (
+            (total_hours_present / total_hours_taken) * 100
+            if total_hours_taken > 0 else 0
+        )
+        
+        # Append the data to the summary
+        attendance_summary.append({
+            "course": course,
+            "total_hours_present": total_hours_present,
+            "total_hours_taken": total_hours_taken,
+            "percentage": round(percentage, 2),
+        })
+    
+    # Render the report
+    return render(request, 'attendance/student_report.html', {
+        "student": student,
+        "attendance_summary": attendance_summary,
+    })
