@@ -1,4 +1,5 @@
-import csv,json
+import csv
+from django.urls import reverse
 from datetime import date
 from datetime import datetime
 from django.shortcuts import render, get_object_or_404, redirect
@@ -6,7 +7,7 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
-from django.http import HttpResponse,Http404,JsonResponse
+from django.http import HttpResponse,Http404,JsonResponse, HttpResponseRedirect
 from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import IntegrityError
@@ -18,6 +19,8 @@ from .forms import (
     HourDateCourseForm, AbsentDetailsForm,
     UserForm,CSVUploadForm
 )
+
+
 
 def clean_name(name):
     """Standardize the name format: convert to uppercase and replace periods with spaces."""
@@ -113,6 +116,7 @@ def upload_students(request):
     return render(request, 'attendance/upload_students.html', {'form': form})
 
 @login_required
+@user_passes_test(HoD_group_required)
 def remove_student(request, id):
     student = get_object_or_404(Student, id=id)
     
@@ -122,6 +126,7 @@ def remove_student(request, id):
     return redirect('student_list')
 
 @login_required
+@user_passes_test(HoD_group_required)
 def edit_student(request, id):
     student = get_object_or_404(Student, id=id)
     teacher = student.programme.department.teachers.filter(user=request.user).first()  # Use 'teachers' instead of 'teacher_set'
@@ -249,7 +254,6 @@ def upload_teachers(request):
 
 
 @login_required
-@user_passes_test(HoD_group_required)
 def edit_teacher(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)  # Get the teacher instance by id
     user = teacher.user  # Get the related User instance
@@ -338,6 +342,8 @@ def course_list(request):
         'course_students': course_students if user.groups.filter(name='HoD').exists() else None,
     })
 
+
+@login_required
 def get_assigned_students(request, course_id):
     students = StudentCourse.objects.filter(course_id=course_id).select_related('student__programme')
     
@@ -352,6 +358,8 @@ def get_assigned_students(request, course_id):
     return JsonResponse({'students': students_data})
 
 # View for managing Course
+@login_required
+@user_passes_test(HoD_group_required)
 def add_course(request):
     if request.method == 'POST':
         form = CourseForm(request.POST)
@@ -365,6 +373,7 @@ def add_course(request):
 
 
 @login_required
+@user_passes_test(HoD_group_required)
 def teacher_course_assign(request):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
@@ -401,6 +410,9 @@ def get_assigned_teachers(request, course_id):
     except Course.DoesNotExist:
         return JsonResponse({"error": "Course not found"}, status=404)
 
+
+@login_required
+@user_passes_test(HoD_group_required)
 def assign_teachers(request):
     if request.method == 'POST':
         course_id = request.POST.get('course_id')
@@ -416,6 +428,8 @@ def assign_teachers(request):
         return redirect('teacher_course_assign')  # Redirect to course list after saving
 
 # Remove teachers from a course
+@login_required
+@user_passes_test(HoD_group_required)
 def remove_teachers(request):
     if request.method == 'POST':
         course_id = request.POST.get('course_id')
@@ -446,6 +460,8 @@ def remove_teachers(request):
     return redirect('teacher_course_assign')
 
 
+@login_required
+@user_passes_test(HoD_group_required)
 def student_course_assign(request):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
@@ -492,6 +508,7 @@ def student_course_assign(request):
 
 
 # View to get assigned courses for a student
+@login_required
 def get_assigned_courses(request, student_id):
     student = Student.objects.get(id=student_id)
     student_courses = StudentCourse.objects.filter(student=student)
@@ -502,7 +519,8 @@ def get_assigned_courses(request, student_id):
     
     return JsonResponse({'courses': course_data})
 
-
+@login_required
+@user_passes_test(HoD_group_required)
 def remove_courses(request):
     if request.method == 'POST':
         student_id = request.POST.get('student_id')
@@ -526,7 +544,7 @@ def remove_courses(request):
         return redirect('student_course_assign')  # Redirect back to the form page
 
 
-
+@login_required
 def take_attendance(request, course_id):
     # Get the logged-in teacher
     teacher = request.user.teacher  # Assuming the user is a teacher
@@ -614,10 +632,6 @@ def teacher_attendance_list(request):
     return render(request, 'attendance/teacher_attendance_list.html', context)
 
 
-from django.shortcuts import get_object_or_404
-from django.http import HttpResponseRedirect
-from django.urls import reverse
-
 @login_required
 def edit_attendance(request, record_id):
     # Ensure the logged-in user is a teacher
@@ -682,7 +696,7 @@ def remove_attendance(request, record_id):
 
 
 
-
+@login_required
 def attendance_report(request, course_id):
     course = Course.objects.get(id=course_id)
     total_hours = HourDateCourse.objects.filter(course=course).count()
@@ -741,6 +755,7 @@ def attendance_report(request, course_id):
 
 
 @login_required
+@user_passes_test(HoD_group_required)
 def student_individual_report(request, student_id):
     # Fetch the student and their enrolled courses
     student = Student.objects.get(id=student_id)
