@@ -29,15 +29,14 @@
         <!-- Student List with Absence Checkboxes -->
         <div class="form-group">
             <h3>Students:</h3>
-            <ul>
+            <ol>
                 {% for student in students %}
                     <li>
-                        <label>{{ student.name }} ({{ student.university_register_number }})</label>
-                        <!-- Direct checkbox after student's name -->
-                        <input type="checkbox" name="students_{{ student.id }}" value="absent" class="form-check-input">
-                    </li>
+                      <input type="checkbox" name="students_{{ student.id }}" value="absent" class="form-check-input">
+                        <label>{{ student.university_register_number }} - {{ student.name }}</label>
+                        <!-- Direct checkbox after student's name -->                    </li>
                 {% endfor %}
-            </ul>
+            </ol>
         </div>
 
         <button type="submit" class="btn btn-primary">Submit Attendance</button>
