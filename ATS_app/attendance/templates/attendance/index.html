@@ -4,15 +4,108 @@
 Attendance Tracking System
 {% endblock %}
 
+{% block extra_head %}
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        p {
+            color: #34495e;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .features-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .feature-card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature-card h4 {
+            color: #2980b9;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .feature-card p {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .features-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 1rem;
+            color: #7f8c8d;
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
-    <h2>Welcome!</h2>
+    <h2>Welcome to the Attendance Tracking System!</h2>
     <p>
-        This is the Attendance Tracking System for the new Four-Year UG Programme. 
-        Use the links above to navigate to the appropriate section.
+        ATS (Attendance Tracking System) is a Django-based application designed to manage and track student attendance for courses in the new Four-Year UG Programme.
+        This system allows instructors to efficiently mark student attendance and generate reports, ensuring an organized approach to managing course participation.
     </p>
-    <p>
-        Admins can log in to manage users and courses. Teachers can access their dashboard to mark attendance.
-    </p>
+
+    <div class="features-list">
+        <div class="feature-card">
+            <h4>Student Attendance Tracking</h4>
+            <p>Allows professors to mark student attendance for each class session, ensuring accurate tracking of student participation.</p>
+        </div>
+        <div class="feature-card">
+            <h4>Course Management</h4>
+            <p>Organize and manage courses, including student enrollments and instructors, to streamline the teaching process.</p>
+        </div>
+        <div class="feature-card">
+            <h4>Automated Reports</h4>
+            <p>Generate detailed attendance reports to track overall student participation and performance.</p>
+        </div>
+        <div class="feature-card">
+            <h4>User-Friendly Interface</h4>
+            <p>Simple and intuitive UI for instructors to take attendance by selecting student names easily and quickly.</p>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    <p>Created by students of the Department of Computer Science</p>
 </div>
 {% endblock %}
