@@ -38,10 +38,12 @@
                     <!-- HoD can change their own password -->
                     <a href="{% url 'change_password' teacher.id %}" class="btn btn-info btn-sm">Change Password</a>
                     <!-- HoD can reset their own password -->
-                    <a href="{% url 'reset_password' teacher.id %}" class="btn btn-info btn-sm">Reset Password</a>
+                    <a href="{% url 'reset_password' teacher.id %}" class="btn btn-info btn-sm" 
+                       onclick="return confirm('You will be logged out after Reset (password: {{ teacher.user.username }}@123)')">Reset Password</a>
                 {% else %}
                     <!-- HoD can reset password of other teachers -->
-                    <a href="{% url 'reset_password' teacher.id %}" class="btn btn-info btn-sm">Reset Password</a>
+                    <a href="{% url 'reset_password' teacher.id %}" class="btn btn-info btn-sm" 
+                       onclick="return confirm('password: {{ teacher.user.username }}@123')">Reset Password</a>
                 {% endif %}
                 
                 <!-- HoD can delete any teacher -->
