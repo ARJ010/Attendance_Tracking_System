@@ -467,6 +467,9 @@ def student_course_assign(request):
     department = teacher.department
     students = Student.objects.filter(programme__department=department).order_by('university_register_number')
 
+    # Update this line to include department information
+    all_courses = Course.objects.all().select_related('department').order_by('department__name', 'name')
+
     # Prepare the student_courses_map for all students
     student_courses_map = {}
     for student in students:
@@ -492,8 +495,6 @@ def student_course_assign(request):
         
         return redirect('student_course_assign')  # Redirect after saving assignments
     
-    all_courses = Course.objects.all()
-
     # Ensure the selected student is passed to the template
     selected_student = students.first()  # Example: default to the first student, update as per your logic
     selected_student_courses = student_courses_map.get(selected_student, [])
