@@ -598,28 +598,86 @@ def take_attendance(request, course_id):
 
 
 
-# View for Hour-Date-Course
-def hour_date_course_form_view(request):
-    if request.method == 'POST':
-        form = HourDateCourseForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('hour_date_course_list')
-    else:
-        form = HourDateCourseForm()
-    return render(request, 'attendance/hour_date_course_form.html', {'form': form})
+@login_required
+def teacher_attendance_list(request):
+    # Ensure the logged-in user is a teacher
+    if not hasattr(request.user, 'teacher'):
+        messages.error(request, "You are not authorized to access this page.")
+        return redirect('home')
+
+    teacher = request.user.teacher  # Get the Teacher instance linked to the user
+    attendance_records = HourDateCourse.objects.filter(teacher=teacher).order_by('-date')
+
+    context = {
+        'attendance_records': attendance_records,
+    }
+    return render(request, 'attendance/teacher_attendance_list.html', context)
 
 
-# View for Absent Details
-def absent_details_form_view(request):
+from django.shortcuts import get_object_or_404
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+
+@login_required
+def edit_attendance(request, record_id):
+    # Ensure the logged-in user is a teacher
+    if not hasattr(request.user, 'teacher'):
+        messages.error(request, "You are not authorized to access this page.")
+        return redirect('home')
+
+    # Get the attendance record (HourDateCourse) by ID
+    attendance_record = get_object_or_404(HourDateCourse, id=record_id)
+
+    # Ensure the logged-in teacher is the one who took the attendance
+    if attendance_record.teacher != request.user.teacher:
+        messages.error(request, "You are not authorized to edit this attendance.")
+        return redirect('teacher_attendance_list')
+
+    # Get all students associated with the course in this attendance record
+    student_courses = StudentCourse.objects.filter(course=attendance_record.course).select_related('student')
+    students = [sc.student for sc in student_courses]
+
+    # Get existing absences for this attendance record
+    existing_absences = AbsentDetails.objects.filter(hour_date_course=attendance_record)
+    absent_students = {absence.student.id for absence in existing_absences}
+
     if request.method == 'POST':
-        form = AbsentDetailsForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('absent_details_list')
-    else:
-        form = AbsentDetailsForm()
-    return render(request, 'attendance/absent_details_form.html', {'form': form})
+        # Update absences based on the submitted form
+        selected_absent_ids = {
+            int(key.split('_')[1])  # Extract student ID from checkbox name
+            for key in request.POST.keys()
+            if key.startswith('students_')
+        }
+
+        # Update or delete AbsentDetails as needed
+        for student in students:
+            if student.id in selected_absent_ids:
+                AbsentDetails.objects.update_or_create(
+                    hour_date_course=attendance_record,
+                    student=student,
+                    defaults={'status': False}  # Absent
+                )
+            else:
+                AbsentDetails.objects.filter(hour_date_course=attendance_record, student=student).delete()
+
+        messages.success(request, "Attendance updated successfully.")
+        return HttpResponseRedirect(reverse('teacher_attendance_list'))
+
+    context = {
+        'attendance_record': attendance_record,
+        'students': students,
+        'absent_students': absent_students,
+    }
+    return render(request, 'attendance/edit_attendance.html', context)
+
+
+
+@login_required
+def remove_attendance(request, record_id):
+    record = get_object_or_404(HourDateCourse, id=record_id, teacher=request.user.teacher)
+    record.delete()
+    messages.success(request, "Attendance record removed successfully!")
+    return redirect('teacher_attendance_list')
 
 
 

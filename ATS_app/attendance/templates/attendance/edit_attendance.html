@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Attendance{% endblock %}
+
+{% block content %}
+    <h2>Edit Attendance</h2>
+    <h3>Course: {{ attendance_record.course.name }}</h3>
+    <h4>Date: {{ attendance_record.date }}</h4>
+    <h4>Hour: {{ attendance_record.hour }}</h4>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <h3>Students:</h3>
+            <ol>
+                {% for student in students %}
+                    <li>
+                        <input type="checkbox" name="students_{{ student.id }}" 
+                               value="absent" 
+                               class="form-check-input"
+                               {% if student.id in absent_students %}checked{% endif %}>
+                        <label>{{ student.university_register_number }} - {{ student.name }}</label>
+                    </li>
+                {% endfor %}
+            </ol>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Update Attendance</button>
+    </form>
+
+    <a href="{% url 'teacher_attendance_list' %}" class="btn btn-secondary mt-3">Back to Attendance Records</a>
+{% endblock %}

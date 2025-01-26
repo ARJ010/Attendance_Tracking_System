@@ -40,10 +40,7 @@
                         </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'hour_date_course_form' %}">Hour-Date-Course</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'absent_details_form' %}">Absent Details</a>
+                        <a class="nav-link" href="{% url 'teacher_attendance_list' %}">Attendance Taken</a>
                     </li>
                 </ul>
                 {% if user.is_authenticated %}
