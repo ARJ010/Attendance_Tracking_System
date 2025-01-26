@@ -877,3 +877,75 @@ def student_individual_report(request, student_id):
     }
 
     return render(request, 'attendance/student_report.html', context)
+
+
+
+@login_required
+@user_passes_test(HoD_group_required)
+def department_report(request, department_id):
+    # Fetch the department
+    department = Department.objects.get(id=department_id)
+    
+    # Get all students in the department
+    students = Student.objects.filter(programme__department=department).order_by('university_register_number')
+    
+    # Calculate total hours taken for the department (sum of all hours in all courses)
+    total_hours_taken = HourDateCourse.objects.filter(course__department=department).count()
+
+    # Prepare the data for each student
+    student_data = []
+
+    # Iterate over each student in the department
+    for student in students:
+        total_present = 0
+        total_hours = 0
+        total_absent = 0
+        total_attended_hours = 0  # Total hours the student was present across all courses
+        
+        # Loop through the courses the student is enrolled in
+        for student_course in student.studentcourse_set.all():
+            course = student_course.course
+            
+            # Calculate the total number of hours for this course
+            course_hours = HourDateCourse.objects.filter(course=course).count()
+            total_hours += course_hours  # Accumulate the total hours for this student
+            
+            # Fetch all the sessions for this course
+            sessions = HourDateCourse.objects.filter(course=course).order_by('date')
+            
+            # Loop through each session and calculate present/absent status
+            for session in sessions:
+                # Check if there is an attendance record for this student for this session
+                attendance_record = AbsentDetails.objects.filter(student=student, hour_date_course=session).first()
+                
+                if attendance_record:
+                    if attendance_record.status:
+                        total_present += 1
+                        total_attended_hours += 1
+                    else:
+                        total_absent += 1
+                else:
+                    # If no record exists, assume the student is present
+                    total_present += 1
+                    total_attended_hours += 1
+
+        # Calculate attendance percentage for this student
+        attendance_percentage = (total_attended_hours / total_hours * 100) if total_hours > 0 else 0
+
+        # Append the student's data to the list
+        student_data.append({
+            'student': student,
+            'total_present': total_present,
+            'attendance_percentage': round(attendance_percentage, 2),
+            'total_hours': total_hours,
+        })
+    
+    # Prepare context for rendering
+    context = {
+        'department': department,
+        'students': student_data,
+        'total_hours_taken': total_hours_taken,
+        'is_hod': request.user.groups.filter(name='HOD').exists()  # Check if the user is HOD
+    }
+
+    return render(request, 'attendance/department.html', context)

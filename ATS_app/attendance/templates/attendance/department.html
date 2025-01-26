@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Department Report{% endblock %}
+
+{% block extra_head %}
+<!-- Add any extra CSS or scripts if needed -->
+{% endblock %}
+
+{% block content %}
+    <h2>Department of {{ department.name }} (Students)</h2>
+
+    <!-- Display the total hours taken in the department -->
+    <p><strong>Total Hours of Attendance Taken: </strong>{{ total_hours_taken }}</p>
+
+    <div class="mb-3">
+        {% if is_hod %}
+            <a href="{% url 'add_student' %}" class="btn btn-primary">Add Student</a>
+            <a href="{% url 'upload_students' %}" class="btn btn-secondary">Bulk Add Students</a>
+            <a href="#" class="btn btn-secondary">Department Summary</a>
+        {% endif %}
+    </div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Serial No.</th>
+                <th>University Register Number</th>
+                <th>Name</th>
+                <th>Total Hours Present</th>
+                <th>Attendance Percentage</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for data in students %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>  <!-- Serial Number -->
+                    <td>{{ data.student.university_register_number }}</td>
+                    <td>{{ data.student.name }}</td>
+                    <td>{{ data.total_present }}</td>  <!-- Total Hours Present -->
+                    <td>{{ data.attendance_percentage }}%</td>  <!-- Attendance Percentage -->
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No students found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

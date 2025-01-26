@@ -11,7 +11,7 @@
         {% if is_hod %}
             <a href="{% url 'add_student' %}" class="btn btn-primary">Add Student</a>
             <a href="{% url 'upload_students' %}" class="btn btn-secondary">Bulk Add Students</a>
-            <a href="#" class="btn btn-secondary" class="btn btn-success">Department Summery</a>
+            <a href="{% url 'department_report' department.id%}" class="btn btn-secondary" class="btn btn-success">Department Summary</a>
         {% endif %}
     
 

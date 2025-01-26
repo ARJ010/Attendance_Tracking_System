@@ -133,3 +133,9 @@ table tr:hover {
 .mb-4 {
     margin-bottom: 1.5rem;
 }
+
+.logout{
+    background-color: transparent;
+    border-radius: 34%;
+    color: white;
+}
