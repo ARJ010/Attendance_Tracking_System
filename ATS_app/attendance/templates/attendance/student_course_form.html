@@ -41,19 +41,46 @@
         align-self: flex-end;
     }
     .courses-list {
-        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+        padding: 15px 0;
+    }
+    .courses-list input[type="checkbox"] {
+        display: none;
     }
     .courses-list label {
         display: block;
-        margin-bottom: 5px;
+        padding: 12px 20px;
+        background-color: #f5f5f5;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        font-weight: 500;
+        color: #333;
+    }
+    .courses-list label:hover {
+        background-color: #e9e9e9;
+        transform: translateY(-2px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .courses-list input[type="checkbox"]:checked + label {
+        background-color: #4CAF50;
+        color: white;
+        border-color: #45a049;
     }
     .modal-actions {
         display: flex;
         justify-content: flex-end;
+        gap: 10px;
         margin-top: 20px;
     }
     .modal-actions button {
-        margin-left: 10px;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
     }
 </style>
 {% endblock %}
@@ -98,14 +125,13 @@
         <form method="POST" id="courseForm">
             {% csrf_token %}
             <div class="courses-list">
-                <!-- Dynamically displaying the courses for the selected student -->
                 {% for course in all_courses %}
                     <label>
                         <input type="checkbox" name="courses" value="{{ course.id }}" 
                             {% if course in student_courses_map|get_item:student %}
                             checked
                             {% endif %}>
-                            {{ course.name }} - {{ course.code }}
+                        {{ course.code }} - {{ course.department }}
                     </label>
                 {% endfor %}
             </div>
@@ -121,13 +147,11 @@
 <!-- Remove Courses Modal -->
 <div id="removeCoursesModal" class="modal">
     <div class="modal-content">
-        <h2>Remove Courses from Student</h2>
+        <h2>Remove Courses</h2>
         <form method="POST" action="{% url 'remove_courses' %}" id="removeCoursesForm">
             {% csrf_token %}
-            <div class="courses-list">
-                <ul id="coursesToRemoveList">
-                    <!-- Dynamically filled with student's courses -->
-                </ul>
+            <div class="courses-list" id="coursesToRemoveList">
+                <!-- Will be populated by JavaScript -->
             </div>
             <input type="hidden" name="student_id" id="removeStudentId">
             <div class="modal-actions">
@@ -161,7 +185,6 @@
     function showRemoveCoursesModal(studentId) {
         removeStudentIdInput.value = studentId;
         
-        // Fetch the assigned courses for the student via AJAX
         fetch(`/get_assigned_courses/${studentId}/`)
             .then(response => response.json())
             .then(data => {
@@ -169,14 +192,17 @@
                 coursesList.innerHTML = ''; // Clear the existing list
                 if (data.courses.length > 0) {
                     data.courses.forEach(course => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <label>
-                                <input type="checkbox" name="courses_to_remove" value="${course.id}">
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                            <input type="checkbox" 
+                                   id="remove_course_${course.id}" 
+                                   name="courses_to_remove" 
+                                   value="${course.id}">
+                            <label for="remove_course_${course.id}">
                                 ${course.code} - ${course.name}
                             </label>
                         `;
-                        coursesList.appendChild(li);
+                        coursesList.appendChild(div);
                     });
                 } else {
                     coursesList.innerHTML = '<p>No courses assigned to this student.</p>';
@@ -186,7 +212,7 @@
                 console.error('Error fetching course data:', error);
             });
         
-        removeCoursesModal.classList.add('show');  // Show the modal with smooth transition
+        removeCoursesModal.classList.add('show');
     }
     
     

@@ -71,12 +71,11 @@ class CourseForm(forms.ModelForm):
 
     class Meta:
         model = Course
-        fields = ['name', 'code', 'semester', 'credits', 'year_offered', 'department']
+        fields = ['name', 'code', 'semester', 'credits', 'department']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Enter course name'}),
             'code': forms.TextInput(attrs={'placeholder': 'Enter course code'}),
             'credits': forms.NumberInput(attrs={'placeholder': 'Enter number of credits'}),
-            'year_offered': forms.NumberInput(attrs={'placeholder': 'Enter year offered'}),
             'department': forms.Select(attrs={'placeholder': 'Select department'}),
         }
 
@@ -117,9 +116,8 @@ class TeacherCourseForm(forms.ModelForm):
 class HourDateCourseForm(forms.ModelForm):
     class Meta:
         model = HourDateCourse
-        fields = ['teacher_course', 'date', 'hour']
+        fields = ['date', 'hour']
         widgets = {
-            'teacher_course': forms.Select(attrs={'placeholder': 'Select Teacher-Course'}),
             'date': forms.DateInput(attrs={'type': 'date'}),
             'hour': forms.TextInput(attrs={'placeholder': 'Enter hour (e.g., 1st Hour, 2nd Hour)'}),
         }

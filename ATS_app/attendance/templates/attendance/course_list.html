@@ -3,6 +3,13 @@
 {% block title %}Course List{% endblock %}
 
 {% block content %}
+{% if messages %}
+  <div class="alert alert-warning">
+    {% for message in messages %}
+      <p>{{ message }}</p>
+    {% endfor %}
+  </div>
+{% endif %}
     <h2>Department of {{ department }} (Courses)</h2>
     {% if is_hod %}
     <div class="mb-3">
@@ -16,6 +23,7 @@
             <th>Course Code</th>
             <th>Department</th>
             <th>Actions</th>
+            <th>Reports</th>
           </tr>
         </thead>
         <tbody>
@@ -26,11 +34,17 @@
               <td>{{ course.department.name }}</td>
               <td>
                 <button type="button" class="btn btn-info show-btn" data-course="{{ course.id }}">Show Students</button>
+                <a href="{% url 'take_attendance' course.id %}"> <button type="button" class="btn btn-info">Take Attendance</button></a>
+            </td>
+            <td>
+              <div class="mb-3">
+                <a href="{% url 'attendance_report' course.id %}" class="btn btn-success">Summary Report</a>
+              </div>            
             </td>
             </tr>
           {% empty %}
             <tr>
-                <td colspan="4">No courses found.</td>
+                <td colspan="5">No courses found.</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -56,39 +70,45 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const buttons = document.querySelectorAll('.show-btn');
-        
-        buttons.forEach(button => {
-            button.addEventListener('click', function() {
-                const courseId = button.getAttribute('data-course');
-                
-                // Fetch the students assigned to this course using AJAX
-                fetch(`/get_assigned_students/${courseId}/`)
-                    .then(response => response.json())
-                    .then(data => {
-                        const studentList = document.getElementById('studentList');
-                        studentList.innerHTML = ''; // Clear previous list
-                        
-                        if (data.students.length > 0) {
-                            data.students.forEach(student => {
-                                const listItem = document.createElement('li');
-                                listItem.textContent = `${student.name} (${student.university_register_number}, ${student.programme})`;
-                                studentList.appendChild(listItem);
-                            });
-                        } else {
-                            const listItem = document.createElement('li');
-                            listItem.textContent = 'No students assigned';
-                            studentList.appendChild(listItem);
-                        }
-                    });
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+      const buttons = document.querySelectorAll('.show-btn');
 
-                // Show the modal
-                const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
-                modal.show();
-            });
-        });
-    });
-  </script>
+      buttons.forEach(button => {
+          button.addEventListener('click', function () {
+              const courseId = button.getAttribute('data-course');
+
+              // Fetch the students assigned to this course using AJAX
+              fetch(`/get_assigned_students/${courseId}/`)
+                  .then(response => response.json())
+                  .then(data => {
+                      const studentList = document.getElementById('studentList');
+                      studentList.innerHTML = ''; // Clear previous list
+
+                      if (data.students.length > 0) {
+                          data.students.forEach(student => {
+                              const listItem = document.createElement('li');
+                              listItem.innerHTML = `
+                                  ${student.name} (${student.university_register_number}, ${student.programme})`;
+                              studentList.appendChild(listItem);
+                          });
+                      } else {
+                          const listItem = document.createElement('li');
+                          listItem.textContent = 'No students assigned';
+                          studentList.appendChild(listItem);
+                      }
+                  })
+                  .catch(error => {
+                      console.error("Error fetching students:", error);
+                      alert("Failed to fetch assigned students. Please try again.");
+                  });
+
+              // Show the modal
+              const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
+              modal.show();
+          });
+      });
+  });
+</script>
+
 {% endblock %}
