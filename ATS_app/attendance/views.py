@@ -39,7 +39,10 @@ def HoD_group_required(user):
     """Check if the user belongs to the 'HoD' group."""
     return user.groups.filter(name='HoD').exists()
 
-@login_required()
+def is_superuser(user):
+    return user.is_superuser
+
+@login_required
 def index(request):
     return render(request, 'attendance/index.html')
 
@@ -1050,7 +1053,9 @@ def department_report(request, department_id):
 
     return render(request, 'attendance/department.html', context)
 
-
+@login_required
+@user_passes_test(HoD_group_required)
+@user_passes_test(is_superuser)
 def programme_courses_view(request):
     # Get all programmes
     programmes = Programme.objects.all()
@@ -1074,7 +1079,7 @@ def programme_courses_view(request):
         
         # Get distinct courses for display purposes
         course_ids = student_courses.values_list('course', flat=True).distinct()
-        courses = Course.objects.filter(id__in=course_ids)
+        courses = Course.objects.filter(id__in=course_ids).order_by('code')
         
         programme_data.append({
             'programme': programme,
