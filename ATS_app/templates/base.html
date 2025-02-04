@@ -39,6 +39,11 @@
                             <a class="nav-link" href="{% url 'teacher_course_assign' %}">Assign Teacher</a>
                         </li>
                     {% endif %}
+                    {% if user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'programme_courses_view' %}">Programme Course</a>
+                        </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'teacher_attendance_list' %}">Attendance Taken</a>
                     </li>

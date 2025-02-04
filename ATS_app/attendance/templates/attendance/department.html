@@ -9,16 +9,6 @@
 {% block content %}
     <h2>Department of {{ department.name }} (Students)</h2>
 
-    <!-- Display the total hours taken in the department -->
-    <p><strong>Total Hours of Attendance Taken: </strong>{{ total_hours_taken }}</p>
-
-    <div class="mb-3">
-        {% if is_hod %}
-            <a href="{% url 'add_student' %}" class="btn btn-primary">Add Student</a>
-            <a href="{% url 'upload_students' %}" class="btn btn-secondary">Bulk Add Students</a>
-            <a href="#" class="btn btn-secondary">Department Summary</a>
-        {% endif %}
-    </div>
 
     <table class="table table-striped">
         <thead>
@@ -26,6 +16,7 @@
                 <th>Serial No.</th>
                 <th>University Register Number</th>
                 <th>Name</th>
+                <th>Total Hours Taken</th> <!-- New Column -->
                 <th>Total Hours Present</th>
                 <th>Attendance Percentage</th>
             </tr>
@@ -36,12 +27,13 @@
                     <td>{{ forloop.counter }}</td>  <!-- Serial Number -->
                     <td>{{ data.student.university_register_number }}</td>
                     <td>{{ data.student.name }}</td>
+                    <td>{{ data.total_hours_taken }}</td> <!-- Total Hours Taken -->
                     <td>{{ data.total_present }}</td>  <!-- Total Hours Present -->
                     <td>{{ data.attendance_percentage }}%</td>  <!-- Attendance Percentage -->
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center">No students found.</td>
+                    <td colspan="6" class="text-center">No students found.</td>
                 </tr>
             {% endfor %}
         </tbody>

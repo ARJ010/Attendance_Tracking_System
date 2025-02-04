@@ -2,32 +2,172 @@
 
 {% block title %}Edit Attendance{% endblock %}
 
+{% block extra_head %}
+<style>
+    .card {
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+
+    table, th, td {
+        border: 1px solid #ddd;
+    }
+
+    th, td {
+        padding: 12px 20px;
+        text-align: left;
+    }
+
+    th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .custom-checkbox {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .custom-checkbox input[type="checkbox"] {
+        display: none;
+    }
+
+    .custom-checkbox .custom-checkbox-icon {
+        width: 24px;
+        height: 24px;
+        border: 2px solid #6c757d;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+        background-color: white;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .custom-checkbox input[type="checkbox"]:checked + .custom-checkbox-icon {
+        border-color: #dc3545;
+        background-color: #fdeaea;
+    }
+
+    .custom-checkbox .custom-checkbox-icon::before,
+    .custom-checkbox .custom-checkbox-icon::after {
+        content: '';
+        width: 14px;
+        height: 2px;
+        background-color: #dc3545;
+        position: absolute;
+        display: none;
+    }
+
+    .custom-checkbox .custom-checkbox-icon::before {
+        transform: rotate(45deg);
+    }
+
+    .custom-checkbox .custom-checkbox-icon::after {
+        transform: rotate(-45deg);
+    }
+
+    .custom-checkbox input[type="checkbox"]:checked + .custom-checkbox-icon::before,
+    .custom-checkbox input[type="checkbox"]:checked + .custom-checkbox-icon::after {
+        display: block;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+    }
+
+    .btn-custom {
+        width: 200px;
+    }
+
+    .back-btn {
+        text-decoration: none;
+        font-size: 1rem;
+        color: #007bff;
+    }
+
+    .back-btn:hover {
+        text-decoration: underline;
+    }
+
+    .container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-    <h2>Edit Attendance</h2>
-    <h3>Course: {{ attendance_record.course.name }}</h3>
-    <h4>Date: {{ attendance_record.date }}</h4>
-    <h4>Hour: {{ attendance_record.hour }}</h4>
-
-    <form method="POST">
-        {% csrf_token %}
-
-        <div class="form-group">
-            <h3>Students:</h3>
-            <ol>
-                {% for student in students %}
-                    <li>
-                        <input type="checkbox" name="students_{{ student.id }}" 
-                               value="absent" 
-                               class="form-check-input"
-                               {% if student.id in absent_students %}checked{% endif %}>
-                        <label>{{ student.university_register_number }} - {{ student.name }}</label>
-                    </li>
-                {% endfor %}
-            </ol>
+    <div class="card">
+        <h2 class="text-center mb-4">Edit Attendance</h2>
+        
+        <div class="mb-3 text-center">
+            <h4><strong>Course:</strong> {{ attendance_record.course.name }}</h4>
+            <h5><strong>Date:</strong> {{ attendance_record.date }}</h5>
+            <h5><strong>Hour:</strong> {{ attendance_record.hour }}</h5>
         </div>
 
-        <button type="submit" class="btn btn-primary">Update Attendance</button>
-    </form>
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <h3>Mark the students who are absent:</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>University Register No.</th>
+                            <th>Student Name</th>
+                            <th>Absent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ student.university_register_number }}</td>
+                                <td>{{ student.name }}</td>
+                                <td>
+                                    <label class="custom-checkbox">
+                                        <input type="checkbox" name="students_{{ student.id }}" value="absent"
+                                               {% if student.id in absent_students %}checked{% endif %}>
+                                        <span class="custom-checkbox-icon"></span>
+                                    </label>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
 
-    <a href="{% url 'teacher_attendance_list' %}" class="btn btn-secondary mt-3">Back to Attendance Records</a>
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-dark btn-lg btn-submit">Update Changes</button>
+                <a href="{% url 'teacher_attendance_list' %}" class="btn btn-outline-dark ms-3">Cancel</a>
+            </div>
+
+        </form>
+    </div>
 {% endblock %}

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}All Programmes & Courses{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        font-family: 'Arial', sans-serif;
+        background-color: #f8f9fa; /* Light gray for a subtle background */
+        color: #212529; /* Standard readable text color */
+    }
+    
+    /* Header Styling */
+    h2 {
+        font-size: 2.2rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    /* Programme Name Styling */
+    .programme-name {
+        font-size: 1.75rem;
+        font-weight: bold;
+        color: #007bff;
+        text-transform: uppercase;
+        text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Card Styling */
+    .card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); /* Softer shadow */
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    
+    /* Card Header */
+    .card-header {
+        background-color: #343a40;
+        color: white;
+        font-size: 1.2rem;
+    }
+    
+    /* Table Styling */
+    .table {
+        border-radius: 5px;
+        overflow: hidden;
+    }
+    
+    .table th {
+        background-color: #343a40;
+        color: white;
+    }
+    
+    .table td {
+        background-color: white;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #e9ecef;
+    }
+    
+    /* Print Styling */
+    @media print {
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+    
+        body {
+            transform: scale(0.95);
+            transform-origin: top left;
+        }
+    
+        .page-break {
+            page-break-before: always;
+            page-break-inside: avoid;
+        }
+    
+        .container {
+            padding: 0;
+        }
+    
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+    
+        th {
+            background-color: #333 !important;
+            color: white !important;
+        }
+    
+        tr:nth-child(even) {
+            background-color: #f2f2f2 !important;
+        }
+    }
+    
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2 class="text-center text-primary mb-4">All Programmes and Their Courses</h2>
+        
+        {% for data in programme_data %}
+        <div class="card mb-4 shadow-sm page-break">
+            <div class="card-header bg-dark text-white">
+                <!-- Enhanced Programme Name -->
+                <h4 class="programme-name mb-1">{{ data.programme.name }}</h4>
+                <p class="mb-1">Total Students: <strong>{{ data.total_students }}</strong></p>
+                <p class="mb-1">Total Courses Required: <strong>{{ data.total_courses_required }}</strong></p>
+                <p class="mb-1">Current Courses Assigned: <strong>{{ data.current_courses_count }}</strong></p>
+                
+                <!-- Display the difference in red if more courses are required -->
+                {% if data.difference > 0 %}
+                    <p class="text-danger mb-0">Courses Still Needed: <strong>{{ data.difference }}</strong></p>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Course Name</th>
+                            <th>Course Code</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in data.courses %}
+                        <tr>
+                            <td>{{ course.name }}</td>
+                            <td>{{ course.code }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center">No courses found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% endblock %}

@@ -44,7 +44,7 @@ admin.site.register(Course, CourseAdmin)
 class StudentCourseAdmin(admin.ModelAdmin):
     list_display = ('student', 'course', 'year')
     search_fields = ('student__name', 'course__name')
-    list_filter = ('year', 'course')
+    list_filter = ('year', 'course', 'student__programme__department')  # Added department filter
 
 admin.site.register(StudentCourse, StudentCourseAdmin)
 
@@ -52,7 +52,7 @@ admin.site.register(StudentCourse, StudentCourseAdmin)
 class TeacherCourseAdmin(admin.ModelAdmin):
     list_display = ('teacher', 'course', 'year')
     search_fields = ('teacher__user__username', 'course__name')
-    list_filter = ('year', 'course')
+    list_filter = ('year', 'course', 'teacher__department')  # Added department filter
 
 admin.site.register(TeacherCourse, TeacherCourseAdmin)
 

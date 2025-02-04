@@ -3,12 +3,15 @@
 {% block title %}Bulk Add Teachers{% endblock %}
 
 {% block content %}
-    <h1>Bulk Add Students</h1>
-    <form method="POST" enctype="multipart/form-data">
+    <h1>Bulk Add Teachers</h1>
+    <p>To upload teachers in bulk, please use the provided CSV template. Fill in the details and upload the file below.</p>
+    <a href="{% url 'download_teacher_template' %}" class="btn btn-info">Download Template</a>
+
+    <form method="POST" enctype="multipart/form-data" class="mt-3">
         {% csrf_token %}
         {{ form.as_p }}
         <button type="submit" class="btn btn-primary">Upload Teachers</button>
     </form>
-    <a href="{% url 'student_list' %}" class="btn btn-secondary mt-3">Back to Student List</a>
-{% endblock %}
 
+    <a href="{% url 'teacher_list' %}" class="btn btn-secondary mt-3">Back to Teacher List</a>
+{% endblock %}

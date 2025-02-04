@@ -9,7 +9,7 @@
         <a href="{% url 'add_course' %}" class="btn btn-primary">Add Course</a>
     </div>
     {% endif %}
-    <table class="table">
+    <table>
         <thead>
           <tr>
             <th>Course Name</th>
@@ -27,7 +27,14 @@
               <td>{{ course.department.name }}</td>
               <td>
                 <button type="button" class="btn btn-info show-btn" data-course="{{ course.id }}">Show Students</button>
-                <a href="{% url 'take_attendance' course.id %}"> <button type="button" class="btn btn-info">Take Attendance</button></a>
+                <a href="{% url 'take_attendance' course.id %}">
+                    <button type="button" class="btn btn-info">Take Attendance</button>
+                </a>
+                {% if is_hod %}
+                <a href="{% url 'edit_course' course.id %}">
+                    <button type="button" class="btn btn-warning">Edit Course</button>
+                </a>
+                {% endif %}
             </td>
             <td>
               <div class="mb-3">

@@ -1,5 +1,8 @@
 from django.urls import path
 from . import views
+from django.conf.urls.static import static
+from django.conf import settings
+
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -17,6 +20,7 @@ urlpatterns = [
     path('teachers/delete/<int:teacher_id>/', views.delete_teacher, name='delete_teacher'),
     path('course/', views.course_list, name='course_list'),
     path('course/add', views.add_course, name='add_course'),
+    path('course/edit/<int:course_id>/', views.edit_course, name='edit_course'),
     path('get_assigned_students/<int:course_id>/', views.get_assigned_students, name='get_assigned_students'),
     path('get_assigned_teachers/<int:course_id>/', views.get_assigned_teachers, name='get_assigned_teachers'),
     path('get_assigned_courses/<int:student_id>/', views.get_assigned_courses, name='get_assigned_courses'),
@@ -31,5 +35,8 @@ urlpatterns = [
     path('teacher/attendance/', views.teacher_attendance_list, name='teacher_attendance_list'),
     path('teacher/attendance/edit/<int:record_id>/', views.edit_attendance, name='edit_attendance'),
     path('teacher/attendance/remove/<int:record_id>/', views.remove_attendance, name='remove_attendance'),
-        path('department/<int:department_id>/', views.department_report, name='department_report'),
+    path('department/<int:department_id>/', views.department_report, name='department_report'),
+    path('download_teacher_template/', views.download_teacher_template, name='download_teacher_template'),
+    path('download_student_template/', views.download_student_template, name='download_student_template'),
+    path('programme_courses_view/', views.programme_courses_view, name='programme_courses_view'),
 ]

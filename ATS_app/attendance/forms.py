@@ -24,6 +24,15 @@ class TeacherForm(forms.ModelForm):
         model = Teacher
         fields = ['department', 'phone_number']
 
+    def __init__(self, *args, **kwargs):
+        # Get the logged-in teacher from kwargs
+        logged_in_teacher = kwargs.pop('logged_in_teacher', None)
+        super().__init__(*args, **kwargs)
+
+        if logged_in_teacher:
+            # Restrict the department queryset to the logged-in teacher's department
+            self.fields['department'].queryset = Department.objects.filter(id=logged_in_teacher.department.id)
+
 
 
 # Form for creating/updating a Student
@@ -78,6 +87,16 @@ class CourseForm(forms.ModelForm):
             'credits': forms.NumberInput(attrs={'placeholder': 'Enter number of credits'}),
             'department': forms.Select(attrs={'placeholder': 'Select department'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        # Get the logged-in teacher from kwargs
+        logged_in_teacher = kwargs.pop('logged_in_teacher', None)
+        super().__init__(*args, **kwargs)
+
+        if logged_in_teacher:
+            # Restrict the department queryset to the logged-in teacher's department
+            self.fields['department'].queryset = Department.objects.filter(id=logged_in_teacher.department.id)
+
 
 
 

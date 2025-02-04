@@ -76,7 +76,33 @@ def add_student(request):
 
 @login_required
 @user_passes_test(HoD_group_required)
+def download_student_template(request):
+    # Get the logged-in HoD's department
+    teacher = Teacher.objects.get(user=request.user)
+    department = teacher.department
+
+    # Create the HTTP response with the appropriate content type for a CSV file
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="student_template.csv"'
+
+    # Write the CSV data
+    writer = csv.writer(response)
+    writer.writerow(['name', 'programme_name', 'university_register_number', 'admission_number'])  # Header
+
+    # Add example rows
+    example_programme = Programme.objects.filter(department=department).first()
+    if example_programme:
+        writer.writerow(['John Doe', example_programme.name, '1234567890', 'ADM001'])
+    else:
+        writer.writerow(['John Doe', 'Example Programme', '1234567890', 'ADM001'])
+
+    return response
+
+
+@login_required
+@user_passes_test(HoD_group_required)
 def upload_students(request):
+    # Get the logged-in HoD's department
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
 
@@ -88,28 +114,37 @@ def upload_students(request):
             reader = csv.DictReader(decoded_file)
 
             for row in reader:
-                programme_name = row.get('programme_name')  # Adjusted to match the CSV column name
-                student_name = clean_name(row.get('name'))  # Clean the student name
+                programme_name = row.get('programme_name')  # Programme name from CSV
+                student_name = clean_name(row.get('name'))  # Clean and validate the student name
                 university_register_number = row.get('university_register_number')
                 admission_number = row.get('admission_number')
 
-                # Check if the student already exists by unique fields (e.g., university_register_number or admission_number)
+                # Check for existing students by unique fields
                 if Student.objects.filter(university_register_number=university_register_number).exists():
-                    messages.warning(request, f"Student with University Register Number '{university_register_number}' already exists. Skipping student '{student_name}'.")
-                    continue  # Skip this student and move to the next one
+                    messages.warning(
+                        request,
+                        f"Student with University Register Number '{university_register_number}' already exists. Skipping student '{student_name}'."
+                    )
+                    continue
 
                 if Student.objects.filter(admission_number=admission_number).exists():
-                    messages.warning(request, f"Student with Admission Number '{admission_number}' already exists. Skipping student '{student_name}'.")
-                    continue  # Skip this student and move to the next one
+                    messages.warning(
+                        request,
+                        f"Student with Admission Number '{admission_number}' already exists. Skipping student '{student_name}'."
+                    )
+                    continue
 
-                # Try to get the Programme, handle the case when it doesn't exist
+                # Verify if the programme exists in the HoD's department
                 try:
                     programme = Programme.objects.get(name=programme_name, department=department)
                 except Programme.DoesNotExist:
-                    messages.error(request, f"Programme '{programme_name}' not found in your department. Skipping student '{student_name}'.")
-                    continue  # Skip this student and move to the next one
+                    messages.error(
+                        request,
+                        f"Programme '{programme_name}' not found in your department. Skipping student '{student_name}'."
+                    )
+                    continue
 
-                # Create a new student record if programme exists
+                # Create the student if all validations pass
                 Student.objects.create(
                     name=student_name,
                     university_register_number=university_register_number,
@@ -121,8 +156,9 @@ def upload_students(request):
             return redirect('student_list')
     else:
         form = CSVUploadForm()
-    
+
     return render(request, 'attendance/upload_students.html', {'form': form})
+
 
 @login_required
 @user_passes_test(HoD_group_required)
@@ -169,9 +205,12 @@ def teacher_list(request):
 @login_required
 @user_passes_test(HoD_group_required)
 def register_teacher(request):
+    # Get the logged-in teacher
+    logged_in_teacher = request.user.teacher
+
     if request.method == 'POST':
         user_form = UserForm(request.POST)
-        teacher_form = TeacherForm(request.POST)
+        teacher_form = TeacherForm(request.POST, logged_in_teacher=logged_in_teacher)
 
         if user_form.is_valid() and teacher_form.is_valid():
             try:
@@ -192,7 +231,7 @@ def register_teacher(request):
                 # Handle the exception or show an error message
     else:
         user_form = UserForm()
-        teacher_form = TeacherForm()
+        teacher_form = TeacherForm(logged_in_teacher=logged_in_teacher)
 
     return render(request, 'attendance/register_teacher.html', {
         'user_form': user_form,
@@ -202,7 +241,30 @@ def register_teacher(request):
 
 @login_required
 @user_passes_test(HoD_group_required)
+def download_teacher_template(request):
+    # Get the logged-in HoD's department
+    hod = Teacher.objects.get(user=request.user)
+    hod_department = hod.department
+
+    # Create the HTTP response with the appropriate content type for a CSV file
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="teacher_template.csv"'
+
+    # Write the CSV data
+    writer = csv.writer(response)
+    writer.writerow(['name', 'department', 'email', 'mobile_number'])  # Header
+    writer.writerow(['John Doe', hod_department.name, 'john.doe@example.com', '9876543210'])  # Example row
+
+    return response
+
+
+@login_required
+@user_passes_test(HoD_group_required)
 def upload_teachers(request):
+    # Get the logged-in HoD's department
+    hod = Teacher.objects.get(user=request.user)
+    hod_department = hod.department
+
     if request.method == 'POST' and request.FILES['csv_file']:
         form = CSVUploadForm(request.POST, request.FILES)
         if form.is_valid():
@@ -219,6 +281,11 @@ def upload_teachers(request):
                 password = f'{first_name.lower()}@123'  # Default password format: firstname@123
                 mobile_number = row.get('mobile_number') or '1234567890'  # Default mobile number if missing
 
+                # Check if the department matches the HoD's department
+                if department_name != hod_department.name:
+                    messages.warning(request, f"Teacher '{name}' cannot be added to department '{department_name}' as it does not match your department.")
+                    continue
+
                 # Check if the teacher already exists by username or email
                 if User.objects.filter(username=username).exists():
                     messages.warning(request, f"User with username '{username}' already exists. Skipping teacher '{name}'.")
@@ -229,10 +296,6 @@ def upload_teachers(request):
                     continue
 
                 try:
-
-                    # Create or get the department
-                    department, created = Department.objects.get_or_create(name=department_name)
-
                     # Create a new user
                     with transaction.atomic():
                         user = User.objects.create_user(username=username, email=email, password=password)
@@ -242,14 +305,11 @@ def upload_teachers(request):
                         # Create the Teacher instance and associate it with the user and department
                         teacher = Teacher.objects.create(
                             user=user,
-                            department=department,
+                            department=hod_department,  # Assign to HoD's department
                             phone_number=mobile_number,  # Mobile number can be edited later
                         )
 
-                    if created:
-                        messages.success(request, f"Department '{department_name}' created and teacher '{name}' uploaded successfully!")
-                    else:
-                        messages.success(request, f"Teacher '{name}' uploaded successfully!")
+                    messages.success(request, f"Teacher '{name}' uploaded successfully!")
 
                 except Exception as e:
                     messages.error(request, f"Error uploading teacher '{name}': {e}")
@@ -262,24 +322,28 @@ def upload_teachers(request):
     return render(request, 'attendance/upload_teachers.html', {'form': form})
 
 
+
 @login_required
 def edit_teacher(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)  # Get the teacher instance by id
     user = teacher.user  # Get the related User instance
 
+    # Get the logged-in teacher
+    logged_in_teacher = request.user.teacher
+
     if request.method == 'POST':
         user_form = UserEditForm(request.POST, instance=user)
-        teacher_form = TeacherForm(request.POST, instance=teacher)
+        teacher_form = TeacherForm(request.POST, instance=teacher, logged_in_teacher=logged_in_teacher)
 
         if user_form.is_valid() and teacher_form.is_valid():
             user_form.save()
             teacher_form.save()
-            messages.success(request, f"Your profile has been updated successfully.")
+            messages.success(request, "The teacher's profile has been updated successfully.")
             return redirect('teacher_list')
 
     else:
         user_form = UserEditForm(instance=user)
-        teacher_form = TeacherForm(instance=teacher)
+        teacher_form = TeacherForm(instance=teacher, logged_in_teacher=logged_in_teacher)
 
     return render(request, 'attendance/edit_teacher.html', {
         'user_form': user_form,
@@ -374,6 +438,7 @@ def course_list(request):
     })
 
 
+
 @login_required
 def get_assigned_students(request, course_id):
     students = StudentCourse.objects.filter(course_id=course_id).select_related('student__programme')
@@ -392,14 +457,31 @@ def get_assigned_students(request, course_id):
 @login_required
 @user_passes_test(HoD_group_required)
 def add_course(request):
+    # Get the logged-in teacher
+    logged_in_teacher = request.user.teacher
+
     if request.method == 'POST':
-        form = CourseForm(request.POST)
+        form = CourseForm(request.POST, logged_in_teacher=logged_in_teacher)
         if form.is_valid():
             form.save()
             return redirect('course_list')
     else:
-        form = CourseForm()
+        form = CourseForm(logged_in_teacher=logged_in_teacher)
+
     return render(request, 'attendance/course_form.html', {'form': form})
+
+@login_required
+def edit_course(request, course_id):
+    logged_in_teacher = request.user.teacher
+    course = get_object_or_404(Course, id=course_id)
+    if request.method == 'POST':
+        form = CourseForm(request.POST, instance=course, logged_in_teacher=logged_in_teacher)
+        if form.is_valid():
+            form.save()
+            return redirect('course_list')  # Redirect to course list after saving
+    else:
+        form = CourseForm(instance=course, logged_in_teacher=logged_in_teacher)
+    return render(request, 'attendance/edit_course.html', {'form': form, 'course': course})
 
 
 
@@ -509,7 +591,7 @@ def student_course_assign(request):
     # Prepare the student_courses_map for all students
     student_courses_map = {}
     for student in students:
-        student_courses_map[student] = StudentCourse.objects.filter(student=student)
+        student_courses_map[student] = StudentCourse.objects.filter(student=student).order_by('course__code')
     
     # If the request method is POST, handle form submission
     if request.method == 'POST':
@@ -531,7 +613,7 @@ def student_course_assign(request):
         
         return redirect('student_course_assign')  # Redirect after saving assignments
     
-    all_courses = Course.objects.all()
+    all_courses = Course.objects.all().select_related('department').order_by('department__name', 'name')
 
     # Ensure the selected student is passed to the template
     selected_student = students.first()  # Example: default to the first student, update as per your logic
@@ -596,17 +678,29 @@ def take_attendance(request, course_id):
         messages.error(request, "You are not authorized to take attendance for this course.")
         return redirect('course_list')  # Redirect if the teacher is not authorized
 
-    # Get all students assigned to this course
+    # Get all students assigned to this course and sort them by university_register_number
     student_courses = StudentCourse.objects.filter(course=course)
-    students = [student_course.student for student_course in student_courses]
+    students = sorted(
+        [student_course.student for student_course in student_courses],
+        key=lambda student: student.university_register_number
+    )
 
     if request.method == 'POST':
-        # Get the selected date (default today)
-        attendance_date = request.POST.get('date', str(date.today()))
-        attendance_date = date.fromisoformat(attendance_date)
+        # Get the selected date (default to today if not provided)
+        attendance_date_str = request.POST.get('date', '')
+        
+        if not attendance_date_str:
+            messages.warning(request, "Please select a date for taking attendance.")
+            return redirect(request.path)  # Stay on the same page
+        
+        attendance_date = date.fromisoformat(attendance_date_str)
 
         # Get the selected hours (from checkboxes)
         selected_hours = request.POST.getlist('hours')
+
+        if not selected_hours:
+            messages.warning(request, "Please select at least one hour to record attendance.")
+            return redirect(request.path)  # Stay on the same page
 
         # Loop through the selected hours and create HourDateCourse entries for each
         for hour in selected_hours:
@@ -630,7 +724,7 @@ def take_attendance(request, course_id):
                 teacher_phone = existing_teacher.phone_number
 
                 # Format the message with teacher name and phone
-                messages.warning(request, f"Attendance already taken By {teacher_full_name} ({teacher_phone}) in Hour {hour} on {attendance_date}")
+                messages.warning(request, f"Attendance already taken by {teacher_full_name} ({teacher_phone}) in Hour {hour} on {attendance_date}")
                 continue  # Skip this hour and move to the next one
 
             # Iterate through each student and check if they are marked as absent
@@ -643,7 +737,6 @@ def take_attendance(request, course_id):
                         defaults={'status': False}  # False means absent
                     )
 
-        
         return redirect('course_list')  # Redirect to the course list or a success page
 
     return render(request, 'attendance/take_attendance.html', {
@@ -652,6 +745,9 @@ def take_attendance(request, course_id):
         'today': date.today(),
         'hours': range(1, 6),  # Provide hours from 1 to 5
     })
+
+
+
 
 
 
@@ -676,7 +772,7 @@ def edit_attendance(request, record_id):
     # Ensure the logged-in user is a teacher
     if not hasattr(request.user, 'teacher'):
         messages.error(request, "You are not authorized to access this page.")
-        return redirect('home')
+        return redirect('teacher_attendance_list')
 
     # Get the attendance record (HourDateCourse) by ID
     attendance_record = get_object_or_404(HourDateCourse, id=record_id)
@@ -688,7 +784,10 @@ def edit_attendance(request, record_id):
 
     # Get all students associated with the course in this attendance record
     student_courses = StudentCourse.objects.filter(course=attendance_record.course).select_related('student')
-    students = [sc.student for sc in student_courses]
+    students = sorted(
+        [student_course.student for student_course in student_courses],
+        key=lambda student: student.university_register_number
+    )
 
     # Get existing absences for this attendance record
     existing_absences = AbsentDetails.objects.filter(hour_date_course=attendance_record)
@@ -886,11 +985,11 @@ def department_report(request, department_id):
     # Fetch the department
     department = Department.objects.get(id=department_id)
     
-    # Get all students in the department
+    # Get all students in the department, ordered by their university register number
     students = Student.objects.filter(programme__department=department).order_by('university_register_number')
     
     # Calculate total hours taken for the department (sum of all hours in all courses)
-    total_hours_taken = HourDateCourse.objects.filter(course__department=department).count()
+    total_hours_taken = HourDateCourse.objects.filter(course__studentcourse__student__programme__department=department).count()
 
     # Prepare the data for each student
     student_data = []
@@ -898,20 +997,21 @@ def department_report(request, department_id):
     # Iterate over each student in the department
     for student in students:
         total_present = 0
-        total_hours = 0
+        total_hours = 0  # Total hours the student could attend (across all their courses)
         total_absent = 0
         total_attended_hours = 0  # Total hours the student was present across all courses
         
+        # Fetch the courses assigned to this student
+        courses = student.studentcourse_set.values_list('course', flat=True)
+
         # Loop through the courses the student is enrolled in
-        for student_course in student.studentcourse_set.all():
-            course = student_course.course
-            
+        for course_id in courses:
             # Calculate the total number of hours for this course
-            course_hours = HourDateCourse.objects.filter(course=course).count()
+            course_hours = HourDateCourse.objects.filter(course_id=course_id).count()
             total_hours += course_hours  # Accumulate the total hours for this student
             
             # Fetch all the sessions for this course
-            sessions = HourDateCourse.objects.filter(course=course).order_by('date')
+            sessions = HourDateCourse.objects.filter(course_id=course_id).order_by('date')
             
             # Loop through each session and calculate present/absent status
             for session in sessions:
@@ -937,7 +1037,7 @@ def department_report(request, department_id):
             'student': student,
             'total_present': total_present,
             'attendance_percentage': round(attendance_percentage, 2),
-            'total_hours': total_hours,
+            'total_hours_taken': total_hours,  # Total hours across all courses
         })
     
     # Prepare context for rendering
@@ -949,3 +1049,43 @@ def department_report(request, department_id):
     }
 
     return render(request, 'attendance/department.html', context)
+
+
+def programme_courses_view(request):
+    # Get all programmes
+    programmes = Programme.objects.all()
+    
+    # Create a dictionary to store programme-wise data
+    programme_data = []
+    
+    for programme in programmes:
+        students = Student.objects.filter(programme=programme)
+        total_students = students.count()
+        total_courses_required = total_students * 6
+        
+        # Get all course assignments for these students
+        student_courses = StudentCourse.objects.filter(student__in=students)
+        
+        # Calculate the total number of courses assigned
+        current_courses_count = student_courses.count()
+        
+        # Calculate the difference
+        difference = total_courses_required - current_courses_count
+        
+        # Get distinct courses for display purposes
+        course_ids = student_courses.values_list('course', flat=True).distinct()
+        courses = Course.objects.filter(id__in=course_ids)
+        
+        programme_data.append({
+            'programme': programme,
+            'courses': courses,
+            'total_students': total_students,
+            'total_courses_required': total_courses_required,
+            'current_courses_count': current_courses_count,
+            'difference': difference,  # Add the difference
+        })
+    
+    context = {
+        'programme_data': programme_data,
+    }
+    return render(request, 'attendance/programme_courses.html', context)

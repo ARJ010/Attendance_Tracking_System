@@ -5,6 +5,9 @@
 {% block content %}
 <style>
     
+    .stdname{
+        color:green;
+    }
     h1 {
         text-align: center;
     }
@@ -45,7 +48,7 @@
 
 
 <div class="header">
-    <h1>Attendance Report for {{ student.name }}</h1>
+    <h1>Attendance Report for <h3 class="stdname">{{ student.name }}</h3></h1>
     <p>Roll No: {{ student.university_register_number }} | Admission No: {{ student.admission_number }}</p>
 </div>
 
