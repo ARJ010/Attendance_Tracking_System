@@ -89,3 +89,4 @@ db.sqlite3
 .env
 myenv/
 media/
+ATS_app/db.sqlite3
