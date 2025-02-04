@@ -1074,7 +1074,7 @@ def programme_courses_view(request):
         
         # Get distinct courses for display purposes
         course_ids = student_courses.values_list('course', flat=True).distinct()
-        courses = Course.objects.filter(id__in=course_ids)
+        courses = Course.objects.filter(id__in=course_ids).order_by('code')
         
         programme_data.append({
             'programme': programme,
