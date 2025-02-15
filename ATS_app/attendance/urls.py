@@ -42,3 +42,4 @@ urlpatterns = [
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin-department/', views.admin_department_view, name='admin_department_view'),
 ]
+
