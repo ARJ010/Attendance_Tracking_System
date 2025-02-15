@@ -16,8 +16,7 @@ from django.contrib import messages
 from django.db import transaction
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
-    UserEditForm,UserForm,
-    CSVUploadForm,AdminStudentForm,
+    UserEditForm,UserForm,CSVUploadForm,
 )
 
 def calculate_year(current_date):
