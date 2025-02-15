@@ -39,7 +39,7 @@ class TeacherForm(forms.ModelForm):
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        fields = ['name', 'university_register_number', 'admission_number', 'programme']
+        fields = ['name', 'university_register_number','roll_number', 'admission_number', 'programme']
     
     def __init__(self, *args, **kwargs):
         # Get the currently logged-in teacher's department
@@ -50,18 +50,16 @@ class StudentForm(forms.ModelForm):
             # Filter programmes based on teacher's department
             self.fields['programme'].queryset = Programme.objects.filter(department=teacher.department)
 
-class StudentEditForm(forms.ModelForm):
+
+
+# Form for creating/updating a Student
+class AdminStudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        fields = ['university_register_number', 'name', 'admission_number', 'programme']
+        fields = ['name', 'university_register_number','roll_number', 'admission_number', 'programme']
     
-    def __init__(self, *args, **kwargs):
-        teacher = kwargs.pop('teacher', None)
-        super().__init__(*args, **kwargs)
-        
-        if teacher:
-            # Filter programmes based on the teacher's department
-            self.fields['programme'].queryset = Programme.objects.filter(department=teacher.department)
+
+    
 
 # Form for creating/updating a Course
 class CourseForm(forms.ModelForm):

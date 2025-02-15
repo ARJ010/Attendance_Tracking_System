@@ -18,7 +18,7 @@ admin.site.register(Programme, ProgrammeAdmin)
 
 # Customizing the admin interface for Student model
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'university_register_number', 'admission_number', 'programme')
+    list_display = ('name', 'roll_number','university_register_number', 'admission_number', 'programme')
     search_fields = ('name', 'university_register_number', 'admission_number')
     list_filter = ('programme',)
 

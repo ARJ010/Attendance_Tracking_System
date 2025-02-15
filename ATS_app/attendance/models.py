@@ -33,6 +33,7 @@ class Programme(models.Model):
 # Student Table
 class Student(models.Model):
     name = models.CharField(max_length=255)
+    roll_number = models.CharField(max_length=50, null=True)
     university_register_number = models.CharField(max_length=50, unique=True)
     admission_number = models.CharField(max_length=50, unique=True)
     programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name="students")
