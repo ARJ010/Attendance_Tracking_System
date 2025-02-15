@@ -2,6 +2,7 @@ import csv
 from django.urls import reverse
 from datetime import date
 from datetime import datetime
+from django.db.models import Min,Count
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.forms import PasswordChangeForm
 from django.views.decorators.csrf import csrf_exempt
@@ -15,9 +16,7 @@ from django.contrib import messages
 from django.db import transaction
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
-    StudentEditForm, UserEditForm, 
-    HourDateCourseForm, AbsentDetailsForm,
-    UserForm,CSVUploadForm
+    UserEditForm,UserForm,CSVUploadForm,
 )
 
 def calculate_year(current_date):
@@ -39,7 +38,10 @@ def HoD_group_required(user):
     """Check if the user belongs to the 'HoD' group."""
     return user.groups.filter(name='HoD').exists()
 
-@login_required()
+def is_superuser(user):
+    return user.is_superuser
+
+@login_required
 def index(request):
     return render(request, 'attendance/index.html')
 
@@ -667,85 +669,72 @@ def remove_courses(request):
 
 @login_required
 def take_attendance(request, course_id):
-    # Get the logged-in teacher
-    teacher = request.user.teacher  # Assuming the user is a teacher
-
-    # Get the course assigned to the teacher
+    teacher = request.user.teacher
     course = get_object_or_404(Course, id=course_id)
 
-    # Ensure that the logged-in teacher is assigned to the course
     if not TeacherCourse.objects.filter(teacher=teacher, course=course).exists():
         messages.error(request, "You are not authorized to take attendance for this course.")
-        return redirect('course_list')  # Redirect if the teacher is not authorized
+        return redirect('course_list')
 
-    # Get all students assigned to this course and sort them by university_register_number
     student_courses = StudentCourse.objects.filter(course=course)
-    students = sorted(
-        [student_course.student for student_course in student_courses],
-        key=lambda student: student.university_register_number
-    )
+    students = [student_course.student for student_course in student_courses]
+
+    # Get sorting option from the request
+    sort_by = request.GET.get('sort_by', 'university_register_number')
+
+    # Sort students based on the selected filter
+    if sort_by == "roll_no":
+        students.sort(key=lambda student: student.roll_no if student.roll_no else "")
+    else:
+        students.sort(key=lambda student: student.university_register_number)
 
     if request.method == 'POST':
-        # Get the selected date (default to today if not provided)
         attendance_date_str = request.POST.get('date', '')
-        
+
         if not attendance_date_str:
             messages.warning(request, "Please select a date for taking attendance.")
-            return redirect(request.path)  # Stay on the same page
-        
-        attendance_date = date.fromisoformat(attendance_date_str)
+            return redirect(request.path)
 
-        # Get the selected hours (from checkboxes)
+        attendance_date = date.fromisoformat(attendance_date_str)
         selected_hours = request.POST.getlist('hours')
 
         if not selected_hours:
             messages.warning(request, "Please select at least one hour to record attendance.")
-            return redirect(request.path)  # Stay on the same page
+            return redirect(request.path)
 
-        # Loop through the selected hours and create HourDateCourse entries for each
         for hour in selected_hours:
             try:
-                # Try to create the HourDateCourse entry
                 hour_date_course = HourDateCourse.objects.create(
                     course=course,
                     teacher=teacher,
                     date=attendance_date,
                     hour=int(hour),
                 )
-
                 messages.success(request, f"Attendance successfully recorded for Hour {hour}")
             except IntegrityError:
-                # Handle the case where the HourDateCourse entry already exists
                 existing_record = HourDateCourse.objects.get(course=course, date=attendance_date, hour=int(hour))
-                existing_teacher = existing_record.teacher
-
-                # Get teacher details (first name, last name, phone number) from the related user model
-                teacher_full_name = f"{existing_teacher.user.first_name} {existing_teacher.user.last_name}"
-                teacher_phone = existing_teacher.phone_number
-
-                # Format the message with teacher name and phone
+                teacher_full_name = f"{existing_record.teacher.user.first_name} {existing_record.teacher.user.last_name}"
+                teacher_phone = existing_record.teacher.phone_number
                 messages.warning(request, f"Attendance already taken by {teacher_full_name} ({teacher_phone}) in Hour {hour} on {attendance_date}")
-                continue  # Skip this hour and move to the next one
+                continue
 
-            # Iterate through each student and check if they are marked as absent
             for student in students:
                 if f'students_{student.id}' in request.POST:
-                    # Create or update the AbsentDetails record for the student
                     AbsentDetails.objects.update_or_create(
                         hour_date_course=hour_date_course,
                         student=student,
-                        defaults={'status': False}  # False means absent
+                        defaults={'status': False}
                     )
 
-        return redirect('course_list')  # Redirect to the course list or a success page
+        return redirect('course_list')
 
     return render(request, 'attendance/take_attendance.html', {
         'course': course,
         'students': students,
         'today': date.today(),
-        'hours': range(1, 6),  # Provide hours from 1 to 5
+        'hours': range(1, 6),
+        'sort_by': sort_by,  # Pass sorting method to template
     })
-
 
 
 
@@ -784,10 +773,20 @@ def edit_attendance(request, record_id):
 
     # Get all students associated with the course in this attendance record
     student_courses = StudentCourse.objects.filter(course=attendance_record.course).select_related('student')
-    students = sorted(
-        [student_course.student for student_course in student_courses],
-        key=lambda student: student.university_register_number
-    )
+    students = [student_course.student for student_course in student_courses]
+
+    # Sorting logic
+    sort_by = request.GET.get('sort', 'register_number')  # Default sorting by University Register No.
+
+    def extract_course_code(register_number):
+        """Extract course code from University Register Number (e.g., 'NA24MATR001' -> 'MATR')"""
+        match = re.search(r'NA\d{2}([A-Z]+)\d+', register_number)
+        return match.group(1) if match else "ZZZ"  # Default to 'ZZZ' if no match (ensures unknown courses go last)
+
+    if sort_by == 'roll_number':
+        students.sort(key=lambda student: (extract_course_code(student.university_register_number), student.roll_number or ""))
+    else:
+        students.sort(key=lambda student: student.university_register_number)
 
     # Get existing absences for this attendance record
     existing_absences = AbsentDetails.objects.filter(hour_date_course=attendance_record)
@@ -807,7 +806,7 @@ def edit_attendance(request, record_id):
                 AbsentDetails.objects.update_or_create(
                     hour_date_course=attendance_record,
                     student=student,
-                    defaults={'status': False}  # Absent
+                    defaults={'status': False}  # Mark as absent
                 )
             else:
                 AbsentDetails.objects.filter(hour_date_course=attendance_record, student=student).delete()
@@ -841,7 +840,7 @@ def attendance_report(request, course_id):
 
     # Fetch students from the StudentCourse table, which links students to courses
     student_courses = StudentCourse.objects.filter(course=course)
-    students = Student.objects.filter(id__in=student_courses.values_list('student_id', flat=True))
+    students = Student.objects.filter(id__in=student_courses.values_list('student_id', flat=True)).order_by('university_register_number')
 
     # Fetch attendance records for the course
     attendance_records = AbsentDetails.objects.filter(hour_date_course__course=course)
@@ -901,6 +900,8 @@ def student_individual_report(request, student_id):
     
     # List of courses the student is enrolled in
     courses = [sc.course for sc in student_courses]
+
+    courses.sort(key=lambda course: course.code)
     
     # Get attendance records for the student
     attendance_data = []
@@ -950,7 +951,7 @@ def student_individual_report(request, student_id):
         
         # Calculate attendance percentage for the course
         if course_data['total_hours'] > 0:
-            course_data['attendance_percentage'] = (course_data['total_present'] / course_data['total_hours']) * 100
+            course_data['attendance_percentage'] = round((course_data['total_present'] / course_data['total_hours']) * 100,2)
         
         # Add the course data to the attendance data
         attendance_data.append(course_data)
@@ -1051,41 +1052,83 @@ def department_report(request, department_id):
     return render(request, 'attendance/department.html', context)
 
 
+@login_required
+@user_passes_test(is_superuser)
+@user_passes_test(HoD_group_required)
 def programme_courses_view(request):
-    # Get all programmes
     programmes = Programme.objects.all()
-    
-    # Create a dictionary to store programme-wise data
     programme_data = []
-    
+
     for programme in programmes:
         students = Student.objects.filter(programme=programme)
         total_students = students.count()
-        total_courses_required = total_students * 6
-        
-        # Get all course assignments for these students
-        student_courses = StudentCourse.objects.filter(student__in=students)
-        
-        # Calculate the total number of courses assigned
-        current_courses_count = student_courses.count()
-        
+        total_courses_required = total_students * 6 if total_students else 0
+
+        # Get unique courses per student by course code
+        student_course_counts = StudentCourse.objects.filter(student__programme=programme) \
+            .values('student', 'course__code') \
+            .distinct() \
+            .values('student') \
+            .annotate(unique_courses=Count('course__code', distinct=True))
+
+        # Sum unique courses across all students
+        current_courses_count = sum(entry['unique_courses'] for entry in student_course_counts)
+
+        # Get distinct courses (by picking only one per unique code)
+        unique_courses = Course.objects.filter(studentcourse__student__programme=programme) \
+            .values('code') \
+            .annotate(id=Min('id'))  # Pick one course per unique code
+
+        courses = Course.objects.filter(id__in=[entry['id'] for entry in unique_courses]).order_by('code')
+
         # Calculate the difference
         difference = total_courses_required - current_courses_count
-        
-        # Get distinct courses for display purposes
-        course_ids = student_courses.values_list('course', flat=True).distinct()
-        courses = Course.objects.filter(id__in=course_ids).order_by('code')
-        
+
         programme_data.append({
             'programme': programme,
             'courses': courses,
             'total_students': total_students,
             'total_courses_required': total_courses_required,
             'current_courses_count': current_courses_count,
-            'difference': difference,  # Add the difference
+            'difference': difference,
         })
-    
-    context = {
-        'programme_data': programme_data,
-    }
-    return render(request, 'attendance/programme_courses.html', context)
+
+    return render(request, 'attendance/programme_courses.html', {'programme_data': programme_data})
+
+
+@login_required
+@user_passes_test(is_superuser)
+def admin_dashboard(request):
+    return render(request, 'attendance/admin_page.html')
+
+
+@login_required
+@user_passes_test(is_superuser)
+def admin_department_view(request):
+    departments = Department.objects.all()
+    selected_department = None
+    students, teachers, courses = [], [], []
+
+    if request.GET.get('department_id'):
+        department_id = request.GET.get('department_id')
+        selected_department = Department.objects.get(id=department_id)
+        students = Student.objects.filter(programme__department=selected_department).order_by('university_register_number')
+        teachers = Teacher.objects.filter(department=selected_department)
+        courses = Course.objects.filter(department=selected_department)
+        
+        # Get students assigned to each course
+        course_students = {}
+        for course in courses:
+            assigned_students = StudentCourse.objects.filter(course=course).values('student__name')
+            course_students[course] = assigned_students
+    else:
+        course_students = None
+
+    return render(request, 'attendance/admin_department_view.html', {
+        'departments': departments,
+        'selected_department': selected_department,
+        'students': students,
+        'teachers': teachers,
+        'courses': courses,
+        'course_students': course_students,
+    })

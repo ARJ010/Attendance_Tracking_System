@@ -39,4 +39,7 @@ urlpatterns = [
     path('download_teacher_template/', views.download_teacher_template, name='download_teacher_template'),
     path('download_student_template/', views.download_student_template, name='download_student_template'),
     path('programme_courses_view/', views.programme_courses_view, name='programme_courses_view'),
+    path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin-department/', views.admin_department_view, name='admin_department_view'),
 ]
+
