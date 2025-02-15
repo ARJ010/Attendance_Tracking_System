@@ -2,7 +2,22 @@
 
 {% block title %}Student List{% endblock %}
 
-{% block extra_head %}{% endblock %}
+{% block extra_head %}
+<style>
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+        padding-right: 15px;
+        position: relative;
+    }
+    .sortable span {
+        position: absolute;
+        right: 0;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
     <h2> Department of {{ department }} (Students)</h2>
@@ -10,46 +25,86 @@
     <div class="mb-3">
         {% if is_hod %}
             <a href="{% url 'add_student' %}" class="btn btn-primary">Add Student</a>
-            <!--<a href="{% url 'upload_students' %}" class="btn btn-secondary">Bulk Add Students</a>-->
-            <a href="{% url 'department_report' department.id%}" class="btn btn-secondary" class="btn btn-success">Department Summary</a>
+            <a href="{% url 'department_report' department.id %}" class="btn btn-secondary">Department Summary</a>
         {% endif %}
-    
+    </div>
 
-    <table>
+    <table id="studentTable" border="1">
         <thead>
             <tr>
-                <th>Serial No.</th>
-                <th>University Register Number</th>
-                <th>Name</th>
-                <th>Admission Number</th>
-                <th>Programme</th>
+                <th>Serial No.</th>  <!-- No sorting -->
+                <th class="sortable" onclick="sortTable(1)">University Register Number <span></span> </th>
+                <th class="sortable" onclick="sortTable(2)">Roll No. <span></span> </th>
+                <th class="sortable" onclick="sortTable(3)">Name <span></span> </th>
+                <th class="sortable" onclick="sortTable(4)">Admission Number <span></span> </th>
+                <th class="sortable" onclick="sortTable(5)">Programme <span></span> </th>
                 {% if is_hod %}
-                <th>Actions</th>  <!-- Updated Actions Column -->
+                    <th>Actions</th>
                 {% endif %}
             </tr>
         </thead>
         <tbody>
             {% for student in students %}
                 <tr>
-                    <td>{{ forloop.counter }}</td>  <!-- Serial Number -->
+                    <td class="serial-number">{{ forloop.counter }}</td>  <!-- Serial Number -->
                     <td>{{ student.university_register_number }}</td>
+                    <td>{{ student.roll_number }}</td>
                     <td>{{ student.name }}</td>
                     <td>{{ student.admission_number }}</td>
                     <td>{{ student.programme.name }}</td>
                     {% if is_hod %}
                     <td>
-                        <a href="{% url 'edit_student' student.id %}" class="btn btn-warning btn-sm">Edit</a>  <!-- Edit Button -->
-                        <a href="{% url 'remove_student' student.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this student?')">Remove</a>  <!-- Remove Button with Confirmation -->
-                        <a href="{% url 'student_report' student.id %}" class="btn btn-success btn-sm">Report</a>  <!-- Report Button -->
+                        <a href="{% url 'edit_student' student.id %}" class="btn btn-warning btn-sm">Edit</a>
+                        <a href="{% url 'remove_student' student.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this student?')">Remove</a>
+                        <a href="{% url 'student_report' student.id %}" class="btn btn-success btn-sm">Report</a>
                     </td>
                     {% endif %}
                 </tr>
             {% empty %}
                 <tr>
-                    <td {% if is_hod %}colspan="6"{% else %}colspan="5"{% endif %} class="text-center">No students found.</td>
+                    <td {% if is_hod %}colspan="7"{% else %}colspan="6"{% endif %} class="text-center">No students found.</td>
                 </tr>
             {% endfor %}
         </tbody>
     </table>
-</div> 
+
+    <script>
+        function sortTable(columnIndex) {
+            let table = document.getElementById("studentTable");
+            let rows = Array.from(table.rows).slice(1); // Exclude header
+            let headerCell = table.rows[0].cells[columnIndex];
+            let currentOrder = headerCell.getAttribute("data-order") || "desc";
+            let isAscending = currentOrder === "asc";
+
+            // Sorting logic (excluding Serial No. column at index 0)
+            rows.sort((rowA, rowB) => {
+                let cellA = rowA.cells[columnIndex].innerText.trim();
+                let cellB = rowB.cells[columnIndex].innerText.trim();
+
+                if (!isNaN(cellA) && !isNaN(cellB)) { 
+                    return isAscending ? cellA - cellB : cellB - cellA;
+                }
+                return isAscending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+            });
+
+            // Toggle order
+            let newOrder = isAscending ? "desc" : "asc";
+            headerCell.setAttribute("data-order", newOrder);
+
+            // Remove arrows from all headers
+            document.querySelectorAll(".sortable span").forEach(span => span.innerText = "");
+
+            // Add correct arrow to the clicked header
+            headerCell.querySelector("span").innerText = newOrder === "asc" ? "▲" : "▼";
+
+            // Reorder rows
+            let tbody = table.querySelector("tbody");
+            rows.forEach(row => tbody.appendChild(row));
+
+            // Recalculate Serial No.
+            document.querySelectorAll(".serial-number").forEach((cell, index) => {
+                cell.innerText = index + 1;
+            });
+        }
+    </script>
 {% endblock %}

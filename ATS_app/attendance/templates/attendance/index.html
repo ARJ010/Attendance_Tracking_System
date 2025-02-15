@@ -17,7 +17,7 @@ Attendance Tracking System
         .banner {
             background: linear-gradient(to right, #1e3a5f, #2980b9);
             color: #ffffff;
-            padding: 40px 0;
+            padding: 15px 0;
             text-align: center;
         }
 
@@ -37,7 +37,7 @@ Attendance Tracking System
             display: flex;
             justify-content: center;
             gap: 20px;
-            margin: 30px auto;
+            margin: 20px auto;
             flex-wrap: wrap;
         }
 
@@ -98,8 +98,8 @@ Attendance Tracking System
             text-align: center;
             background: #1e3a5f;
             color: #ffffff;
-            padding: 15px 0;
-            margin-top: 40px;
+            padding: 10px 0;
+            margin-top: 15px;
             font-size: 0.9rem;
         }
 
@@ -141,10 +141,7 @@ Attendance Tracking System
         <a href="{% url 'student_course_assign' %}">📝 Assign Student</a>
         <a href="{% url 'teacher_course_assign' %}">🎓 Assign Teacher</a>
     {% endif %}
-    <a href="{% url 'teacher_attendance_list' %}">📊 Attendance</a>
-    {% if user.is_superuser %}
-        <a href="{% url 'admin_dashboard' %}" style="background-color: #000;">⚙️ Admin Panel</a>
-    {% endif %}
+    <a href="{% url 'teacher_attendance_list' %}">📊 Attendance Taken</a>
 </div>
 
 <div class="content-container">

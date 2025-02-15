@@ -157,6 +157,12 @@
                 </div>
             </div>
 
+            <!-- Sorting Options -->
+            <div class="d-flex justify-content-center gap-3 my-3">
+                <button type="button" class="btn btn-outline-primary" id="sort-reg">Sort by Register No.</button>
+                <button type="button" class="btn btn-outline-secondary" id="sort-roll">Sort by Roll No.</button>
+            </div>
+
             <!-- Student List -->
             <div class="table-responsive mt-4">
                 <table class="table table-striped table-bordered text-center attendance-table">
@@ -164,15 +170,17 @@
                         <tr>
                             <th>#</th>
                             <th>University Register No.</th>
+                            <th>Roll No.</th>
                             <th>Student Name</th>
                             <th>Absent</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="student-table">
                         {% for student in students %}
-                            <tr>
+                            <tr data-reg="{{ student.university_register_number }}" data-roll="{{ student.roll_number }}">
                                 <td>{{ forloop.counter }}</td>
                                 <td>{{ student.university_register_number }}</td>
+                                <td>{{ student.roll_number }}</td>
                                 <td>{{ student.name }}</td>
                                 <td>
                                     <label class="custom-checkbox">
@@ -196,22 +204,89 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- JavaScript to Set Default Date & Toggle Hour Buttons -->
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Set Default Date to Today
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('date').value = today;
+document.addEventListener("DOMContentLoaded", function () {
+    // Set today's date
+    document.getElementById("date").value = new Date().toISOString().split("T")[0];
 
-        // Toggle button selection
-        document.querySelectorAll('.hour-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                this.classList.toggle('btn-dark');  // Selected state
-                this.classList.toggle('btn-outline-dark');  // Unselected state
-                const checkbox = this.nextElementSibling;
-                checkbox.checked = !checkbox.checked;
-            });
+    // Toggle attendance hours selection
+    document.querySelectorAll(".hour-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            this.classList.toggle("btn-dark");
+            this.classList.toggle("btn-outline-dark");
+            const checkbox = this.nextElementSibling;
+            checkbox.checked = !checkbox.checked;
         });
     });
+
+    let sortRegButton = document.getElementById("sort-reg");
+    let sortRollButton = document.getElementById("sort-roll");
+
+    if (sortRegButton) {
+        sortRegButton.addEventListener("click", sortTableByRegister);
+    } else {
+        console.error("Error: 'sort-reg' button not found!");
+    }
+
+    if (sortRollButton) {
+        sortRollButton.addEventListener("click", sortTableByGroupAndRoll);
+    } else {
+        console.error("Error: 'sort-roll' button not found!");
+    }
+
+    function extractGroup(registerNumber) {
+        let match = registerNumber.match(/^NA\d{2}([A-Z]+)\d+$/);
+        return match ? match[1] : "ZZZ"; // "ZZZ" ensures ungrouped students appear last
+    }
+
+    function sortTableByRegister() {
+        let table = document.getElementById("student-table");
+        let rows = Array.from(table.getElementsByTagName("tr"));
+
+        rows.sort((a, b) => {
+            let regA = a.getAttribute("data-reg") || "";
+            let regB = b.getAttribute("data-reg") || "";
+            return regA.localeCompare(regB);
+        });
+
+        updateTable(rows, table);
+    }
+
+    function sortTableByGroupAndRoll() {
+        let table = document.getElementById("student-table");
+        let rows = Array.from(table.getElementsByTagName("tr"));
+
+        let students = rows.map(row => {
+            let reg = row.getAttribute("data-reg") || "";
+            let rollStr = row.getAttribute("data-roll") || "None";
+            let roll = rollStr === "None" || rollStr.trim() === "" ? Infinity : parseInt(rollStr, 10);
+            let group = reg.match(/NA\d{2}([A-Z]+)/)?.[1] || ""; // Extract group name
+
+            return { row, reg, roll, group };
+        });
+
+        students.sort((a, b) => {
+            if (a.group !== b.group) {
+                return a.group.localeCompare(b.group); // Sort by group name
+            }
+            if (a.roll !== b.roll) {
+                return a.roll - b.roll; // Sort by roll number if available
+            }
+            return a.reg.localeCompare(b.reg); // Sort by register number
+        });
+
+        let sortedRows = students.map(student => student.row);
+        updateTable(sortedRows, table);
+    }
+
+    function updateTable(sortedRows, table) {
+        let index = 1;
+        sortedRows.forEach(row => {
+            row.cells[0].textContent = index++; // Update serial number
+            table.appendChild(row);
+        });
+    }
+});
+
 </script>
 {% endblock %}
