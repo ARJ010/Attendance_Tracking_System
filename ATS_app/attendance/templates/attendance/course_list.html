@@ -2,6 +2,39 @@
 
 {% block title %}Course List{% endblock %}
 
+{% block extra_head %}
+<style>
+/* Style for the modal */
+/* Style for the modal */
+.modal-content {
+  border-radius: 10px;
+  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  background-color: #007bff;
+  color: white;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  padding: 15px;
+}
+
+.modal-title {
+  font-weight: bold;
+}
+
+.btn-close {
+  filter: invert(1);
+}
+
+.table-responsive {
+  max-height: 700px; /* Makes the table scrollable */
+  overflow-y: auto;
+}
+
+</style>
+{% endblock %}
+
 {% block content %}
     <h2>Department of {{ department }} (Courses)</h2>
     {% if is_hod %}
@@ -50,65 +83,85 @@
         </tbody>
     </table>
 
-    <!-- Modal -->
-    <div class="modal fade" id="studentsModal" tabindex="-1" aria-labelledby="studentsModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
+<!-- Styled Modal -->
+<div class="modal fade" id="studentsModal" tabindex="-1" aria-labelledby="studentsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="studentsModalLabel">Assigned Students</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <h5 class="modal-title" id="studentsModalLabel">Assigned Students</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <ol id="studentList">
-              <!-- Assigned students will be shown here -->
-            </ol>
+              <div class="table-responsive">
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>#</th>
+                              <th>Name</th>
+                              <th>University Reg. No</th>
+                              <th>Programme</th>
+                          </tr>
+                      </thead>
+                      <tbody id="studentList">
+                          <!-- Student data will be inserted dynamically -->
+                      </tbody>
+                  </table>
+              </div>
           </div>
-        </div>
       </div>
-    </div>
+  </div>
+</div>
+
+
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-      const buttons = document.querySelectorAll('.show-btn');
+    const buttons = document.querySelectorAll('.show-btn');
 
-      buttons.forEach(button => {
-          button.addEventListener('click', function () {
-              const courseId = button.getAttribute('data-course');
+    buttons.forEach(button => {
+        button.addEventListener('click', function () {
+            const courseId = button.getAttribute('data-course');
 
-              // Fetch the students assigned to this course using AJAX
-              fetch(`/get_assigned_students/${courseId}/`)
-                  .then(response => response.json())
-                  .then(data => {
-                      const studentList = document.getElementById('studentList');
-                      studentList.innerHTML = ''; // Clear previous list
+            // Fetch the students assigned to this course using AJAX
+            fetch(`/get_assigned_students/${courseId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    const studentList = document.getElementById('studentList');
+                    studentList.innerHTML = ''; // Clear previous entries
 
-                      if (data.students.length > 0) {
-                          data.students.forEach(student => {
-                              const listItem = document.createElement('li');
-                              listItem.innerHTML = `
-                                  ${student.name} (${student.university_register_number}, ${student.programme})`;
-                              studentList.appendChild(listItem);
-                          });
-                      } else {
-                          const listItem = document.createElement('li');
-                          listItem.textContent = 'No students assigned';
-                          studentList.appendChild(listItem);
-                      }
-                  })
-                  .catch(error => {
-                      console.error("Error fetching students:", error);
-                      alert("Failed to fetch assigned students. Please try again.");
-                  });
+                    if (data.students.length > 0) {
+                        data.students.forEach((student, index) => {
+                            const row = `
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>${student.name}</td>
+                                    <td>${student.university_register_number}</td>
+                                    <td>${student.programme}</td>
+                                </tr>`;
+                            studentList.innerHTML += row;
+                        });
+                    } else {
+                        studentList.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center">No students assigned</td>
+                            </tr>`;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching students:", error);
+                    alert("Failed to fetch assigned students. Please try again.");
+                });
 
-              // Show the modal
-              const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
-              modal.show();
-          });
-      });
-  });
+            // Show the modal
+            const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
+            modal.show();
+        });
+    });
+});
+
 </script>
 
 {% endblock %}
