@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Attendance Report{% endblock %}
+
+{% block extra_head %}
+<style>
+    table {
+        border-collapse: collapse;
+        margin-top: 20px;
+        width: 100%;
+    }
+
+    table, th, td {
+        border: 1px solid black;
+    }
+
+    table th, table td {
+        text-align: center !important;
+        border: 1px solid black !important;
+        padding: 8px !important;
+    }
+
+    th {
+        background-color: #f2f2f2;
+    }
+
+    td:nth-child(4) {
+        text-align: left !important;
+    }
+    
+    .header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .header h1, .header h2 {
+        margin: 5px;
+    }
+
+    .footer {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    /* Info table styling */
+    .info-table-wrapper {
+        width: 60%;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .info-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+    }
+
+    .info-table th,
+    .info-table td {
+        text-align: left;
+        padding: 10px;
+        font-size: 16px;
+    }
+
+    .info-table th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+        color: #333;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .info-table td {
+        background-color: #fafafa;
+        font-weight: bolder;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .info-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Mixed header styles */
+    .mixed-header {
+        width: 50px;
+        padding: 0;
+        vertical-align: bottom;
+        text-align: center;
+    }
+
+    .date-vertical {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-size: 16px;
+        padding-right: 5px;
+        padding-top: 5px;
+    }
+
+    .hour-horizontal {
+        font-size: 14px;
+    }
+
+    .thick-left-border {
+        border-left: 3px solid black !important; /* Apply thicker border when date changes */
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 15px;
+    }
+    
+    .pagination-button {
+        padding: 8px 15px;
+        margin: 0 5px;
+        text-decoration: none;
+        background-color: #f2f2f2;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        color: #333;
+    }
+    
+    .pagination-button:hover {
+        background-color: #ddd;
+    }
+    
+    .pagination-numbers {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+    
+    .pagination-number {
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        text-decoration: none;
+        color: #333;
+    }
+    
+    .pagination-number:hover {
+        background-color: #ddd;
+    }
+    
+    .pagination-number.active {
+        background-color: #4CAF50;
+        color: white;
+        font-weight: bold;
+    }
+    
+    .pagination-number:focus {
+        outline: none;
+    }
+    
+   /* Responsive Table Styles */
+   @media screen and (max-width: 768px) {
+    .info-table-wrapper {
+        width: 100%;
+        padding: 0 10px;
+    }
+
+    table, th, td {
+        font-size: 12px;
+    }
+
+    .mixed-header, .date-vertical, .hour-horizontal {
+        font-size: 12px;
+        padding: 5px;
+    }
+
+    .date-vertical {
+        writing-mode: unset;
+        transform: unset;
+        white-space: normal;
+        font-size: 14px;
+    }
+
+    .hour-horizontal {
+        font-size: 12px;
+        padding: 5px;
+    }
+
+    .footer button {
+        font-size: 14px;
+    }
+}
+    /* Print-specific styles */
+    @media print {
+        @page {
+            size: portrait;              /* Ensures portrait orientation */
+            margin-top: 10mm;             /* Set top margin to 10mm */
+            margin-bottom: 10mm;          /* Set bottom margin to 10mm */
+            margin-left: 0mm;             /* Set left margin to 0 */
+            margin-right: 0mm;            /* Set right margin to 0 */
+        }
+    
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    
+        /* Ensure the table takes full width */
+        .info-table-wrapper {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+        }
+    
+        /* Hide navbar and other non-essential elements during printing */
+        nav, .navbar, .navbar * {
+            display: none !important;
+        }
+    
+        .footer, .pagination, .navbar-toggler {
+            display: none !important;
+        }
+    
+        /* Table and text styling for print */
+        .info-table {
+            width: 100%;
+        }
+    
+        table th, table td {
+            color: black !important;  /* Ensure text is black */
+        }
+    
+        table th {
+            background-color: #f2f2f2;
+        }
+    
+        .footer button {
+            display: none;
+        }
+    
+        .header, .footer {
+            display: block;
+        }
+    }
+    
+
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="header">
+        <h1>Nehru Arts and Science College, Kanhangad</h1>
+        <h2>NASC-SMS-FYUGP - Attendance Entry</h2>
+    </div>
+    <div class="info-table-wrapper">
+        <table class="info-table">
+            <tbody>
+                <tr>
+                    <th>Department</th>
+                    <td>{{ department }}</td>
+                </tr>
+                <tr>
+                    <th>Semester</th>
+                    <td>{{ semester }}</td>
+                </tr>
+                <tr>
+                    <th>Course</th>
+                    <td>{{ course.code }} - {{ course.name }}</td>
+                </tr>
+                <tr>
+                    <th>Year of Admission</th>
+                    <td>{{ admission_year }}</td>
+                </tr>
+                <tr>
+                    <th>Total Hours Taken</th>
+                    <td>{{ total_hours }}</td>
+                </tr>
+                <tr>
+                <th>Date & Time</th>
+                    <td>{{ date_time|date:"Y-m-d H:i:s" }}</td>
+                </tr>
+            </tbody>            
+        </table>
+    </div>
+
+    <!-- Pagination controls -->
+<div class="pagination">
+    {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="pagination-button">Previous</a>
+    {% endif %}
+    
+    <div class="pagination-numbers">
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                <span class="pagination-number active">{{ num }}</span>
+            {% else %}
+                <a href="?page={{ num }}" class="pagination-number">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="pagination-button">Next</a>
+    {% endif %}
+</div>
+
+    <div class="table-responsive">
+        <table border="1" cellpadding="5" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Sl. No.</th>
+                    <th>Reg. No.</th>
+                    <th>Roll No.</th>
+                    <th>Name</th>
+                    {% for date, hour, _, is_new_date in page_obj.object_list %}
+                        {% if date and hour %}
+                            <th class="mixed-header {% if is_new_date %}thick-left-border{% endif %}">
+                                <div class="date-vertical">{{ date }}</div>
+                                <div class="hour-horizontal">H{{ hour }}</div>
+                            </th>
+                        {% else %}
+                            <th class="mixed-header"></th>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in report_data %}
+                    <tr>
+                        <td>{{ student.sl_no }}</td>
+                        <td>{{ student.reg_no }}</td>
+                        <td>{{ student.roll_no }}</td>
+                        <td>{{ student.name }}</td>
+                        {% for status, is_new_date in student.attendance %}
+                            <td class="{% if is_new_date %}thick-left-border{% endif %}" style="text-align: center; color: {% if status == 'A' %}red{% endif %};">
+                                {{ status }}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+<!-- Pagination controls -->
+<div class="pagination">
+    {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="pagination-button">Previous</a>
+    {% endif %}
+    
+    <div class="pagination-numbers">
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                <span class="pagination-number active">{{ num }}</span>
+            {% else %}
+                <a href="?page={{ num }}" class="pagination-number">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="pagination-button">Next</a>
+    {% endif %}
+</div>
+
+<div class="footer">
+    <p>&copy; {{ date_time.year }} Nehru Arts and Science College</p>
+</div>
+
+{% endblock %}

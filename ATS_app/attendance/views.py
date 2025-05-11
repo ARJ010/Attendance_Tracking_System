@@ -834,61 +834,219 @@ def remove_attendance(request, record_id):
 
 
 
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404
+from datetime import datetime
+from .models import Course, HourDateCourse, StudentCourse, AbsentDetails, Student
+
 @login_required
 def attendance_report(request, course_id):
-    course = Course.objects.get(id=course_id)
-    total_hours = HourDateCourse.objects.filter(course=course).count()
-
-    # Fetch students from the StudentCourse table, which links students to courses
-    student_courses = StudentCourse.objects.filter(course=course)
-    students = Student.objects.filter(id__in=student_courses.values_list('student_id', flat=True)).order_by('university_register_number')
-
-    # Fetch attendance records for the course
-    attendance_records = AbsentDetails.objects.filter(hour_date_course__course=course)
-
-    # Get the current date and time
+    course = get_object_or_404(Course, id=course_id)
     date_time = datetime.now()
 
+    # All HourDateCourse entries for this course
+    hour_date_courses = HourDateCourse.objects.filter(course=course)
+    total_hours = hour_date_courses.count()
+
+    # Students enrolled in this course
+    student_ids = StudentCourse.objects.filter(course=course).values_list('student_id', flat=True)
+    students = Student.objects.filter(id__in=student_ids).order_by('university_register_number')
+
+    # All AbsentDetails related to this course
+    attendance_records = AbsentDetails.objects.filter(hour_date_course__in=hour_date_courses)
+    attendance_lookup = {(record.student_id, record.hour_date_course_id): record.status for record in attendance_records}
+
     attendance_data = []
+
     for student in students:
         total_present = 0
-        total_absent = 0
-        
-        # Iterate through each HourDateCourse for the course
-        for hour_date_course in HourDateCourse.objects.filter(course=course):
-            # Check if there is an attendance record for the student for this hour_date_course
-            attendance_record = attendance_records.filter(student=student, hour_date_course=hour_date_course).first()
-            
-            if attendance_record:  # If there is an attendance record
-                if attendance_record.status:  # Mark present if status is True
-                    total_present += 1
-                else:  # Mark absent if status is False
-                    total_absent += 1
-            else:  # If no attendance record exists, consider the student as present
-                total_present += 1
-        
-        # Calculate attendance percentage
-        attendance_percentage = (total_present / total_hours) * 100 if total_hours else 0
 
-        # Add grace hours logic if applicable
-        attendance_with_grace = attendance_percentage  # Adjust this if grace hours apply
+        for hour in hour_date_courses:
+            status = attendance_lookup.get((student.id, hour.id), True)  # Default to present
+            if status:
+                total_present += 1
+
+        total_absent = total_hours - total_present
+        attendance_percentage = (total_present / total_hours) * 100 if total_hours else 0
 
         attendance_data.append({
             "student": student,
             "total_present": total_present,
             "total_absent": total_absent,
             "attendance_percentage": round(attendance_percentage, 2),
-            "attendance_with_grace": round(attendance_with_grace, 2),
+            "attendance_with_grace": round(attendance_percentage, 2),  # Modify this if grace logic is added
         })
 
     context = {
         "course": course,
         "total_hours": total_hours,
         "attendance_data": attendance_data,
-        "date_time": date_time,  # Pass the current date and time to the template
+        "date_time": date_time,
     }
 
     return render(request, 'attendance/report.html', context)
+
+from collections import defaultdict
+from django.core.paginator import Paginator
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404
+from datetime import datetime
+
+from .models import Course, Student, StudentCourse, HourDateCourse, AbsentDetails
+
+def extract_admission_year(reg_no):
+    year_suffix = reg_no[2:4]
+    year = int(year_suffix)
+    if year < 30:  # Assuming you're only dealing with 2000s admissions
+        return 2000 + year
+    else:
+        return 1900 + year  # Just in case you have very old data
+
+
+@login_required
+def compact_attendance_report(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    semester = course.semester
+    department = course.department
+
+    # Fetch all students for the course
+    students = Student.objects.filter(
+        id__in=StudentCourse.objects.filter(course=course).values_list('student_id', flat=True)
+    ).order_by('university_register_number')
+
+    reg_no = students.first().university_register_number
+    admission_year = extract_admission_year(reg_no)
+
+    # Get all HourDateCourse entries for this course
+    hour_slots = HourDateCourse.objects.filter(course=course).order_by('date', 'hour')
+
+    # Preprocess HourDateCourse to detect date changes
+    header_order = []
+    last_date = None
+    for hdc in hour_slots:
+        date_str = hdc.date.strftime("%d-%m-%Y")
+        is_new_date = date_str != last_date
+        header_order.append((date_str, hdc.hour, hdc.id, is_new_date))  # Added is_new_date flag
+        last_date = date_str
+
+    # Paginate header_order (3 columns per page)
+    paginator = Paginator(header_order, 6)
+    page_number = request.GET.get("page", 1)
+    page_obj = paginator.get_page(page_number)
+
+    # Pad to 10 columns if this is the last page and has fewer items
+    required_columns = 6
+    current_columns = len(page_obj.object_list)
+    if current_columns < required_columns:
+        pad_count = required_columns - current_columns
+        for _ in range(pad_count):
+            # Pad with None values
+            page_obj.object_list.append((None, None, None, False))
+
+
+    # Fetch attendance records and build a quick lookup
+    attendance_lookup = AbsentDetails.objects.filter(hour_date_course__in=hour_slots).values_list(
+        'student_id', 'hour_date_course_id', 'status'
+    )
+    attendance_map = defaultdict(lambda: True)  # Default to present if no record
+    for student_id, hdc_id, status in attendance_lookup:
+        attendance_map[(student_id, hdc_id)] = status
+
+    # Build student-wise attendance data for only the visible columns
+    report_data = []
+    for idx, student in enumerate(students, 1):
+        row = {
+            "sl_no": idx,
+            "reg_no": student.university_register_number,
+            "roll_no": student.roll_number,
+            "name": student.name,
+            "attendance": []
+        }
+        for date_str, hour, hdc_id, is_new_date in page_obj.object_list:
+            if hdc_id is not None:
+                status = attendance_map[(student.id, hdc_id)]
+                mark = "X" if status else "A"
+            else:
+                mark = ""  # Empty cell for padded columns
+            row["attendance"].append((mark, is_new_date))
+
+        report_data.append(row)
+
+    context = {
+        "course": course,
+        "page_obj": page_obj,
+        "report_data": report_data,
+        "total_hours": hour_slots.count(),
+        "date_time": datetime.now(),
+        "department" : department,
+        "semester" : semester,
+        "admission_year" : admission_year,
+    }
+    return render(request, "attendance/compact_report.html", context)
+
+
+from openpyxl import Workbook
+from django.http import HttpResponse
+from collections import defaultdict
+
+@login_required
+def download_attendance_excel(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+
+    # Fetch all students for the course
+    students = Student.objects.filter(
+        id__in=StudentCourse.objects.filter(course=course).values_list('student_id', flat=True)
+    ).order_by('university_register_number')
+
+    # Get all HourDateCourse entries for this course
+    hour_slots = HourDateCourse.objects.filter(course=course).order_by('date', 'hour')
+
+    # Preprocess HourDateCourse to detect date changes
+    header_order = []
+    last_date = None
+    for hdc in hour_slots:
+        date_str = hdc.date.strftime("%d-%m-%Y")
+        is_new_date = date_str != last_date
+        header_order.append((date_str, hdc.hour, hdc.id, is_new_date))  # Added is_new_date flag
+        last_date = date_str
+
+    # Fetch attendance records and build a quick lookup
+    attendance_lookup = AbsentDetails.objects.filter(hour_date_course__in=hour_slots).values_list(
+        'student_id', 'hour_date_course_id', 'status'
+    )
+    attendance_map = defaultdict(lambda: True)  # Default to present if no record
+    for student_id, hdc_id, status in attendance_lookup:
+        attendance_map[(student_id, hdc_id)] = status
+
+    # Create an Excel Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Attendance Report"
+
+    # Add headers
+    headers = ['Sl. No', 'Reg. No', 'Roll No', 'Name'] + [f'{date} H{hour}' for date, hour, _, _ in header_order]
+    ws.append(headers)
+
+    # Add student data rows
+    for idx, student in enumerate(students, 1):
+        row = [
+            idx,
+            student.university_register_number,
+            student.roll_number,
+            student.name
+        ]
+        for date_str, hour, hdc_id, _ in header_order:
+            status = attendance_map[(student.id, hdc_id)]
+            row.append("X" if status else "A")
+        ws.append(row)
+
+    # Set response for downloading Excel file
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="attendance_report.xlsx"'
+    wb.save(response)
+
+    return response
+
 
 
 

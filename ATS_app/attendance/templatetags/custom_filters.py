@@ -28,3 +28,12 @@ def obj_to_dict(obj):
         # Get the model fields, excluding private attributes.
         return {field: getattr(obj, field) for field in obj.__dict__ if not field.startswith('_')}
     return {}
+
+
+
+@register.filter
+def get_item(lst, idx):
+    try:
+        return lst[idx]
+    except IndexError:
+        return None  # or an empty string or any default value you prefer

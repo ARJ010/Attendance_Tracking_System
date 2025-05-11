@@ -31,6 +31,9 @@ urlpatterns = [
     path('teacher-course/', views.teacher_course_assign, name='teacher_course_assign'),
     path('take_attendance/<int:course_id>/', views.take_attendance, name='take_attendance'),
     path('attendance/report/<int:course_id>/', views.attendance_report, name='attendance_report'),
+    path('attendance/compact-report/<int:course_id>/', views.compact_attendance_report, name='compact_attendance_report'),
+    path('attendance/download-excel-report/<int:course_id>/', views.download_attendance_excel, name='download_attendance_excel'),
+
     path('student_report/<int:student_id>/', views.student_individual_report, name='student_report'),
     path('teacher/attendance/', views.teacher_attendance_list, name='teacher_attendance_list'),
     path('teacher/attendance/edit/<int:record_id>/', views.edit_attendance, name='edit_attendance'),
