@@ -226,12 +226,16 @@
             width: 100%;
         }
     
-        table th, table td {
+        table th{
             color: black !important;  /* Ensure text is black */
         }
     
         table th {
             background-color: #f2f2f2;
+        }
+
+        table td {
+            font-size: 10px;
         }
     
         .footer button {
@@ -239,7 +243,7 @@
         }
     
         .header, .footer {
-            display: block;
+            display: none !important;
         }
     }
     
@@ -364,7 +368,8 @@
 </div>
 
 <div class="footer">
-    <p>&copy; {{ date_time.year }} Nehru Arts and Science College</p>
+    
+    <p><button onclick="window.print()">Print</button></p>
 </div>
 
 {% endblock %}
