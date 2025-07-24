@@ -153,7 +153,9 @@
                 <a href="{% url 'take_attendance' batch.id %}" class="btn btn-sm btn-info">Take Attendance</a>
               </td>
               <td>
-                <a href="#" class="btn btn-sm btn-success">Batch Report</a>
+                  <a href="{% url 'attendance_report' batch.id %}" class="btn btn-success">Summary Report</a>
+                  <a href="{% url 'compact_attendance_report' batch.id %}" class="btn btn-success">Datewise Report</a>
+
               </td>
             </tr>
             {% endfor %}

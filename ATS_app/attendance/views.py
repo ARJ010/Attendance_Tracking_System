@@ -527,7 +527,7 @@ def add_course(request):
         form = CourseForm(request.POST, logged_in_teacher=logged_in_teacher)
         if form.is_valid():
             form.save()
-            return redirect('course_list')
+            return redirect('course_list',1)
     else:
         form = CourseForm(logged_in_teacher=logged_in_teacher)
 
@@ -541,7 +541,7 @@ def edit_course(request, course_id):
         form = CourseForm(request.POST, instance=course, logged_in_teacher=logged_in_teacher)
         if form.is_valid():
             form.save()
-            return redirect('course_list')  # Redirect to course list after saving
+            return redirect('course_list', course.semester) # Redirect to course list after saving
     else:
         form = CourseForm(instance=course, logged_in_teacher=logged_in_teacher)
     return render(request, 'attendance/edit_course.html', {'form': form, 'course': course})
@@ -778,76 +778,6 @@ def remove_student_batches(request):
 
 
 
-@login_required 
-def take_attendance(request, course_id): 
-    teacher = request.user.teacher 
-    course = get_object_or_404(Course, id=course_id)
-
-    if not TeacherCourse.objects.filter(teacher=teacher, course=course).exists():
-        messages.error(request, "You are not authorized to take attendance for this course.")
-        return redirect('course_list')
-
-    student_courses = StudentCourse.objects.filter(course=course)
-    students = [student_course.student for student_course in student_courses]
-
-    # Get sorting option from the request
-    sort_by = request.GET.get('sort_by', 'university_register_number')
-
-    # Sort students based on the selected filter
-    if sort_by == "roll_no":
-        students.sort(key=lambda student: student.roll_no if student.roll_no else "")
-    else:
-        students.sort(key=lambda student: student.university_register_number)
-
-    if request.method == 'POST':
-        attendance_date_str = request.POST.get('date', '')
-
-        if not attendance_date_str:
-            messages.warning(request, "Please select a date for taking attendance.")
-            return redirect(request.path)
-
-        attendance_date = date.fromisoformat(attendance_date_str)
-        selected_hours = request.POST.getlist('hours')
-
-        if not selected_hours:
-            messages.warning(request, "Please select at least one hour to record attendance.")
-            return redirect(request.path)
-
-        for hour in selected_hours:
-            try:
-                hour_date_course = HourDateCourse.objects.create(
-                    course=course,
-                    teacher=teacher,
-                    date=attendance_date,
-                    hour=int(hour),
-                )
-                messages.success(request, f"Attendance successfully recorded for Hour {hour}")
-            except IntegrityError:
-                existing_record = HourDateCourse.objects.get(course=course, date=attendance_date, hour=int(hour))
-                teacher_full_name = f"{existing_record.teacher.user.first_name} {existing_record.teacher.user.last_name}"
-                teacher_phone = existing_record.teacher.phone_number
-                messages.warning(request, f"Attendance already taken by {teacher_full_name} ({teacher_phone}) in Hour {hour} on {attendance_date}")
-                continue
-
-            for student in students:
-                if f'students_{student.id}' in request.POST:
-                    AbsentDetails.objects.update_or_create(
-                        hour_date_course=hour_date_course,
-                        student=student,
-                        defaults={'status': False}
-                    )
-
-        return redirect('course_list')
-
-    return render(request, 'attendance/take_attendance.html', {
-        'course': course,
-        'students': students,
-        'today': date.today(),
-        'hours': range(1, 6),
-        'sort_by': sort_by,  # Pass sorting method to template
-    })
-
-
 @login_required
 def take_attendance(request, batch_id):
     teacher = request.user.teacher
@@ -936,64 +866,92 @@ def teacher_attendance_list(request):
     }
     return render(request, 'attendance/teacher_attendance_list.html', context)
 
+@login_required
+def teacher_attendance_list(request, sem):
+    # Ensure the logged-in user is a teacher
+    if not hasattr(request.user, 'teacher'):
+        messages.error(request, "You are not authorized to access this page.")
+        return redirect('home')
+
+    teacher = request.user.teacher
+
+    # Get all active batches for this teacher in the selected semester
+    batches = Batch.objects.filter(
+        course__semester=sem,
+        teacherbatch__teacher=teacher,
+        active=True
+    ).distinct()
+
+    # Get all attendance records for these batches
+    attendance_records = HourDateBatch.objects.filter(
+        teacher=teacher,
+        batch__in=batches
+    ).order_by('-date')
+
+    context = {
+        'attendance_records': attendance_records,
+        'batches': batches,
+        'selected_semester': sem,
+    }
+    return render(request, 'attendance/teacher_attendance_list.html', context)
+
 
 @login_required
 def edit_attendance(request, record_id):
     # Ensure the logged-in user is a teacher
     if not hasattr(request.user, 'teacher'):
         messages.error(request, "You are not authorized to access this page.")
-        return redirect('teacher_attendance_list')
+        return redirect('teacher_attendance_list', sem=1)  # or your default semester
 
-    # Get the attendance record (HourDateCourse) by ID
-    attendance_record = get_object_or_404(HourDateCourse, id=record_id)
+    # Get the attendance record (HourDateBatch) by ID
+    attendance_record = get_object_or_404(HourDateBatch, id=record_id)
 
     # Ensure the logged-in teacher is the one who took the attendance
     if attendance_record.teacher != request.user.teacher:
         messages.error(request, "You are not authorized to edit this attendance.")
-        return redirect('teacher_attendance_list')
+        return redirect('teacher_attendance_list', sem=attendance_record.batch.course.semester)
 
-    # Get all students associated with the course in this attendance record
-    student_courses = StudentCourse.objects.filter(course=attendance_record.course).select_related('student')
-    students = [student_course.student for student_course in student_courses]
+    # Get all students assigned to this batch
+    student_batches = StudentBatch.objects.filter(batch=attendance_record.batch).select_related('student')
+    students = [sb.student for sb in student_batches]
 
-    # Sorting logic
-    sort_by = request.GET.get('sort', 'register_number')  # Default sorting by University Register No.
-
-    def extract_course_code(register_number):
-        """Extract course code from University Register Number (e.g., 'NA24MATR001' -> 'MATR')"""
-        match = re.search(r'NA\d{2}([A-Z]+)\d+', register_number)
-        return match.group(1) if match else "ZZZ"  # Default to 'ZZZ' if no match (ensures unknown courses go last)
-
+    # Sorting logic (optional, you can keep or remove)
+    sort_by = request.GET.get('sort', 'register_number')
     if sort_by == 'roll_number':
-        students.sort(key=lambda student: (extract_course_code(student.university_register_number), student.roll_number or ""))
+        students.sort(key=lambda student: student.roll_number or "")
     else:
         students.sort(key=lambda student: student.university_register_number)
 
     # Get existing absences for this attendance record
-    existing_absences = AbsentDetails.objects.filter(hour_date_course=attendance_record)
-    absent_students = {absence.student.id for absence in existing_absences}
+    existing_absences = NewAbsentDetails.objects.filter(hour_date_batch=attendance_record)
+    absent_students = {absence.student.id for absence in existing_absences if not absence.status}
 
     if request.method == 'POST':
         # Update absences based on the submitted form
         selected_absent_ids = {
-            int(key.split('_')[1])  # Extract student ID from checkbox name
+            int(key.split('_')[1])
             for key in request.POST.keys()
             if key.startswith('students_')
         }
 
-        # Update or delete AbsentDetails as needed
+        # Update or delete NewAbsentDetails as needed
         for student in students:
             if student.id in selected_absent_ids:
-                AbsentDetails.objects.update_or_create(
-                    hour_date_course=attendance_record,
+                NewAbsentDetails.objects.update_or_create(
+                    hour_date_batch=attendance_record,
                     student=student,
                     defaults={'status': False}  # Mark as absent
                 )
             else:
-                AbsentDetails.objects.filter(hour_date_course=attendance_record, student=student).delete()
+                # Mark as present (status=True) or delete absent record
+                NewAbsentDetails.objects.update_or_create(
+                    hour_date_batch=attendance_record,
+                    student=student,
+                    defaults={'status': True}  # Mark as present
+                )
 
         messages.success(request, "Attendance updated successfully.")
-        return HttpResponseRedirect(reverse('teacher_attendance_list'))
+        return HttpResponseRedirect(reverse('teacher_attendance_list', args=[attendance_record.batch.course.semester]))
 
     context = {
         'attendance_record': attendance_record,
@@ -1002,14 +960,15 @@ def edit_attendance(request, record_id):
     }
     return render(request, 'attendance/edit_attendance.html', context)
 
-
-
 @login_required
 def remove_attendance(request, record_id):
-    record = get_object_or_404(HourDateCourse, id=record_id, teacher=request.user.teacher)
+    # Get the attendance record for this teacher
+    record = get_object_or_404(HourDateBatch, id=record_id, teacher=request.user.teacher)
+    # Store the semester for redirect
+    sem = record.batch.course.semester
     record.delete()
     messages.success(request, "Attendance record removed successfully!")
-    return redirect('teacher_attendance_list')
+    return redirect('teacher_attendance_list', sem=sem)
 
 
 
@@ -1020,28 +979,28 @@ from datetime import datetime
 from .models import Course, HourDateCourse, StudentCourse, AbsentDetails, Student
 
 @login_required
-def attendance_report(request, course_id):
-    course = get_object_or_404(Course, id=course_id)
+def attendance_report(request, batch_id):
+    batch = get_object_or_404(Batch, id=batch_id)
     date_time = datetime.now()
 
-    # All HourDateCourse entries for this course
-    hour_date_courses = HourDateCourse.objects.filter(course=course)
-    total_hours = hour_date_courses.count()
+    # All HourDateBatch entries for this batch
+    hour_date_batches = HourDateBatch.objects.filter(batch=batch)
+    total_hours = hour_date_batches.count()
 
-    # Students enrolled in this course
-    student_ids = StudentCourse.objects.filter(course=course).values_list('student_id', flat=True)
+    # Students assigned to this batch
+    student_ids = StudentBatch.objects.filter(batch=batch).values_list('student_id', flat=True)
     students = Student.objects.filter(id__in=student_ids).order_by('university_register_number')
 
-    # All AbsentDetails related to this course
-    attendance_records = AbsentDetails.objects.filter(hour_date_course__in=hour_date_courses)
-    attendance_lookup = {(record.student_id, record.hour_date_course_id): record.status for record in attendance_records}
+    # All NewAbsentDetails related to this batch
+    attendance_records = NewAbsentDetails.objects.filter(hour_date_batch__in=hour_date_batches)
+    attendance_lookup = {(record.student_id, record.hour_date_batch_id): record.status for record in attendance_records}
 
     attendance_data = []
 
     for student in students:
         total_present = 0
 
-        for hour in hour_date_courses:
+        for hour in hour_date_batches:
             status = attendance_lookup.get((student.id, hour.id), True)  # Default to present
             if status:
                 total_present += 1
@@ -1054,11 +1013,11 @@ def attendance_report(request, course_id):
             "total_present": total_present,
             "total_absent": total_absent,
             "attendance_percentage": round(attendance_percentage, 2),
-            "attendance_with_grace": round(attendance_percentage, 2),  # Modify this if grace logic is added
+            "attendance_with_grace": round(attendance_percentage, 2),  # Modify if grace logic is added
         })
 
     context = {
-        "course": course,
+        "batch": batch,
         "total_hours": total_hours,
         "attendance_data": attendance_data,
         "date_time": date_time,
@@ -1084,53 +1043,52 @@ def extract_admission_year(reg_no):
 
 
 @login_required
-def compact_attendance_report(request, course_id):
-    course = get_object_or_404(Course, id=course_id)
+def compact_attendance_report(request, batch_id):
+    batch = get_object_or_404(Batch, id=batch_id)
+    course = batch.course
     semester = course.semester
     department = course.department
 
-    # Fetch all students for the course
+    # Fetch all students for the batch
     students = Student.objects.filter(
-        id__in=StudentCourse.objects.filter(course=course).values_list('student_id', flat=True)
+        id__in=StudentBatch.objects.filter(batch=batch).values_list('student_id', flat=True)
     ).order_by('university_register_number')
 
-    reg_no = students.first().university_register_number
-    admission_year = extract_admission_year(reg_no)
+    reg_no = students.first().university_register_number if students else ""
+    admission_year = extract_admission_year(reg_no) if reg_no else ""
 
-    # Get all HourDateCourse entries for this course
-    hour_slots = HourDateCourse.objects.filter(course=course).order_by('date', 'hour')
+    # Get all HourDateBatch entries for this batch
+    hour_slots = HourDateBatch.objects.filter(batch=batch).order_by('date', 'hour')
 
-    # Preprocess HourDateCourse to detect date changes
+    # Preprocess HourDateBatch to detect date changes
     header_order = []
     last_date = None
-    for hdc in hour_slots:
-        date_str = hdc.date.strftime("%d-%m-%Y")
+    for hdb in hour_slots:
+        date_str = hdb.date.strftime("%d-%m-%Y")
         is_new_date = date_str != last_date
-        header_order.append((date_str, hdc.hour, hdc.id, is_new_date))  # Added is_new_date flag
+        header_order.append((date_str, hdb.hour, hdb.id, is_new_date))
         last_date = date_str
 
-    # Paginate header_order (3 columns per page)
+    # Paginate header_order (6 columns per page)
     paginator = Paginator(header_order, 6)
     page_number = request.GET.get("page", 1)
     page_obj = paginator.get_page(page_number)
 
-    # Pad to 10 columns if this is the last page and has fewer items
+    # Pad to 6 columns if this is the last page and has fewer items
     required_columns = 6
     current_columns = len(page_obj.object_list)
     if current_columns < required_columns:
         pad_count = required_columns - current_columns
         for _ in range(pad_count):
-            # Pad with None values
             page_obj.object_list.append((None, None, None, False))
 
-
     # Fetch attendance records and build a quick lookup
-    attendance_lookup = AbsentDetails.objects.filter(hour_date_course__in=hour_slots).values_list(
-        'student_id', 'hour_date_course_id', 'status'
+    attendance_lookup = NewAbsentDetails.objects.filter(hour_date_batch__in=hour_slots).values_list(
+        'student_id', 'hour_date_batch_id', 'status'
     )
     attendance_map = defaultdict(lambda: True)  # Default to present if no record
-    for student_id, hdc_id, status in attendance_lookup:
-        attendance_map[(student_id, hdc_id)] = status
+    for student_id, hdb_id, status in attendance_lookup:
+        attendance_map[(student_id, hdb_id)] = status
 
     # Build student-wise attendance data for only the visible columns
     report_data = []
@@ -1142,9 +1100,9 @@ def compact_attendance_report(request, course_id):
             "name": student.name,
             "attendance": []
         }
-        for date_str, hour, hdc_id, is_new_date in page_obj.object_list:
-            if hdc_id is not None:
-                status = attendance_map[(student.id, hdc_id)]
+        for date_str, hour, hdb_id, is_new_date in page_obj.object_list:
+            if hdb_id is not None:
+                status = attendance_map[(student.id, hdb_id)]
                 mark = "X" if status else "A"
             else:
                 mark = ""  # Empty cell for padded columns
@@ -1153,14 +1111,15 @@ def compact_attendance_report(request, course_id):
         report_data.append(row)
 
     context = {
+        "batch": batch,
         "course": course,
         "page_obj": page_obj,
         "report_data": report_data,
         "total_hours": hour_slots.count(),
         "date_time": datetime.now(),
-        "department" : department,
-        "semester" : semester,
-        "admission_year" : admission_year,
+        "department": department,
+        "semester": semester,
+        "admission_year": admission_year,
     }
     return render(request, "attendance/compact_report.html", context)
 
@@ -1233,27 +1192,39 @@ def download_attendance_excel(request, course_id):
 @login_required
 @user_passes_test(HoD_group_required)
 def student_individual_report(request, student_id):
-    # Fetch the student and their enrolled courses
     student = Student.objects.get(id=student_id)
-    student_courses = StudentCourse.objects.filter(student=student)
-    
-    # List of courses the student is enrolled in
-    courses = [sc.course for sc in student_courses]
 
-    courses.sort(key=lambda course: course.code)
-    
-    # Get attendance records for the student
+    # Get all semesters this student has attended
+    semesters = (
+        StudentBatch.objects
+        .filter(student=student)
+        .values_list('batch__course__semester', flat=True)
+        .distinct()
+        .order_by('batch__course__semester')
+    )
+    semesters = [str(s) for s in semesters]  # Ensure string for template comparison
+
+    # Get selected semester from GET, default to current semester
+    selected_semester = request.GET.get('semester', str(student.current_semester))
+
+    # Only batches for the selected semester
+    student_batches = StudentBatch.objects.filter(
+        student=student,
+        batch__course__semester=selected_semester
+    ).select_related('batch__course')
+    batches = [sb.batch for sb in student_batches]
+    batches.sort(key=lambda batch: (batch.course.code, batch.academic_year, batch.part))
+
     attendance_data = []
     total_hours = 0
     total_present = 0
     total_absent = 0
-    total_course_hours = 0  # Total hours across all courses
-    total_attended_hours = 0  # Total hours the student was present across all courses
+    total_attended_hours = 0
 
-    # Iterate over each course the student is enrolled in
-    for course in courses:
-        course_data = {
-            'course': course,
+    for batch in batches:
+        batch_data = {
+            'batch': batch,
+            'course': batch.course,
             'attendance_per_day': [],
             'total_hours': 0,
             'total_present': 0,
@@ -1261,58 +1232,51 @@ def student_individual_report(request, student_id):
             'attendance_percentage': 0,
         }
 
-        # Fetch the class sessions for the course, ordered by date
-        sessions = HourDateCourse.objects.filter(course=course).order_by('date')
+        sessions = HourDateBatch.objects.filter(batch=batch).order_by('date', 'hour')
 
         for session in sessions:
-            # Check if there is an attendance record for this student for this session
-            attendance_record = AbsentDetails.objects.filter(student=student, hour_date_course=session).first()
-            
-            # Calculate attendance status
+            attendance_record = NewAbsentDetails.objects.filter(student=student, hour_date_batch=session).first()
             if attendance_record:
                 status = 'Present' if attendance_record.status else 'Absent'
                 if attendance_record.status:
-                    course_data['total_present'] += 1
-                    total_attended_hours += 1  # Increase the attended hours for the student
+                    batch_data['total_present'] += 1
+                    total_attended_hours += 1
                 else:
-                    course_data['total_absent'] += 1
+                    batch_data['total_absent'] += 1
             else:
-                status = 'Present'  # Assume present if no record exists
-                course_data['total_present'] += 1
-                total_attended_hours += 1  # Assume student is present if no record exists
+                status = 'Present'
+                batch_data['total_present'] += 1
+                total_attended_hours += 1
 
-            course_data['attendance_per_day'].append({
+            batch_data['attendance_per_day'].append({
                 'date': session.date,
-                'status': status,
                 'hour': session.hour,
+                'status': status,
             })
-            course_data['total_hours'] += 1
-        
-        # Calculate attendance percentage for the course
-        if course_data['total_hours'] > 0:
-            course_data['attendance_percentage'] = round((course_data['total_present'] / course_data['total_hours']) * 100,2)
-        
-        # Add the course data to the attendance data
-        attendance_data.append(course_data)
+            batch_data['total_hours'] += 1
 
-        # Accumulate total course hours and total attended hours for the entire student
-        total_course_hours += course_data['total_hours']
-        total_present += course_data['total_present']
-        total_absent += course_data['total_absent']
+        if batch_data['total_hours'] > 0:
+            batch_data['attendance_percentage'] = round((batch_data['total_present'] / batch_data['total_hours']) * 100, 2)
 
-    # Calculate overall attendance percentage for the student
-    if total_course_hours > 0:
-        overall_attendance_percentage = (total_attended_hours / total_course_hours) * 100
+        attendance_data.append(batch_data)
+        total_hours += batch_data['total_hours']
+        total_present += batch_data['total_present']
+        total_absent += batch_data['total_absent']
+
+    if total_hours > 0:
+        overall_attendance_percentage = (total_attended_hours / total_hours) * 100
     else:
         overall_attendance_percentage = 0
 
     context = {
         'student': student,
         'attendance_data': attendance_data,
-        'total_hours': total_course_hours,
+        'total_hours': total_hours,
         'total_present': total_present,
         'total_absent': total_absent,
         'overall_attendance_percentage': round(overall_attendance_percentage, 2),
+        'semesters_history': semesters,
+        'selected_semester': selected_semester,
     }
 
     return render(request, 'attendance/student_report.html', context)

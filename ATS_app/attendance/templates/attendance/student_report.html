@@ -4,57 +4,41 @@
 
 {% block content %}
 <style>
-    
-    .stdname{
-        color:green;
-    }
-    h1 {
-        text-align: center;
-    }
-    .header {
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .footer {
-        text-align: center;
-        margin-top: 20px;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-        margin-bottom: 20px;
-    }
-    table, th, td {
-        border: 1px solid black;
-        padding: 8px;
-    }
-    th {
-        background-color: #f2f2f2;
-    }
-    .summary-table {
-        margin-top: 20px;
-    }
-    .summary-table td {
-        padding: 10px;
-        text-align: left;
-    }
-    @media print {
-    .footer button {
-        display: none;
-    }
-}
+    .stdname { color: green; }
+    h1 { text-align: center; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .footer { text-align: center; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; }
+    table, th, td { border: 1px solid black; padding: 8px; }
+    th { background-color: #f2f2f2; }
+    .summary-table { margin-top: 20px; }
+    .summary-table td { padding: 10px; text-align: left; }
+    @media print { .footer button { display: none; } }
 </style>
-
 
 <div class="header">
     <h1>Attendance Report for <h3 class="stdname">{{ student.name }}</h3></h1>
     <p>Roll No: {{ student.university_register_number }} | Admission No: {{ student.admission_number }}</p>
 </div>
 
-<!-- Loop through each course -->
-{% for course_data in attendance_data %}
-<h2> {{ course_data.course.code }} - {{ course_data.course.name }} </h2>
+<!-- Semester filter (if you added it in your view/context) -->
+{% if semesters_history %}
+<form method="get" class="mb-3" style="text-align:center;">
+    <label for="semester-select"><strong>Semester:</strong></label>
+    <select name="semester" id="semester-select" onchange="this.form.submit()">
+        {% for sem in semesters_history %}
+            <option value="{{ sem }}" {% if sem == selected_semester %}selected{% endif %}>Semester {{ sem }}</option>
+        {% endfor %}
+    </select>
+</form>
+{% endif %}
+
+<!-- Loop through each batch -->
+{% for batch_data in attendance_data %}
+<h2>
+    {{ batch_data.course.code }} - {{ batch_data.course.name }}
+    | Year: {{ batch_data.batch.academic_year }} | Part: {{ batch_data.batch.part }}
+</h2>
 
 <table>
     <thead>
@@ -66,14 +50,14 @@
         </tr>
     </thead>
     <tbody>
-        {% for day in course_data.attendance_per_day %}
+        {% for day in batch_data.attendance_per_day %}
         <tr>
             <td>{{ forloop.counter }}</td>
             <td>{{ day.date }}</td>
             <td>{{ day.hour }}</td>
             {% if day.status == 'Present' %}
                 <td><span style='font-size:25px; color: darkgreen;'>&#10004;</span></td>
-            {%else%}
+            {% else %}
                 <td><span style='font-size:25px;color: darkred;'>&#10006;</span></td>
             {% endif %}
         </tr>
@@ -85,19 +69,19 @@
     <table>
         <tr>
             <td>Total Hours</td>
-            <td>{{ course_data.total_hours }}</td>
+            <td>{{ batch_data.total_hours }}</td>
         </tr>
         <tr>
             <td>Total Present</td>
-            <td>{{ course_data.total_present }}</td>
+            <td>{{ batch_data.total_present }}</td>
         </tr>
         <tr>
             <td>Total Absent</td>
-            <td>{{ course_data.total_absent }}</td>
+            <td>{{ batch_data.total_absent }}</td>
         </tr>
         <tr>
             <td>Attendance Percentage</td>
-            <td>{{ course_data.attendance_percentage }}%</td>
+            <td>{{ batch_data.attendance_percentage }}%</td>
         </tr>
     </table>
 </div>
@@ -127,5 +111,4 @@
 <div class="footer print-button">
     <button onclick="window.print()">Print</button>
 </div>
-
 {% endblock %}

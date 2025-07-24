@@ -35,12 +35,12 @@ urlpatterns = [
 
     
     path('take_attendance/batch/<int:batch_id>/', views.take_attendance, name='take_attendance'),
-    path('attendance/report/<int:course_id>/', views.attendance_report, name='attendance_report'),
-    path('attendance/compact-report/<int:course_id>/', views.compact_attendance_report, name='compact_attendance_report'),
+    path('attendance/report/<int:batch_id>/', views.attendance_report, name='attendance_report'),
+    path('attendance/compact-report/<int:batch_id>/', views.compact_attendance_report, name='compact_attendance_report'),
     path('attendance/download-excel-report/<int:course_id>/', views.download_attendance_excel, name='download_attendance_excel'),
 
     path('student_report/<int:student_id>/', views.student_individual_report, name='student_report'),
-    path('teacher/attendance/', views.teacher_attendance_list, name='teacher_attendance_list'),
+    path('teacher/attendance/semester/<str:sem>/', views.teacher_attendance_list, name='teacher_attendance_list'),
     path('teacher/attendance/edit/<int:record_id>/', views.edit_attendance, name='edit_attendance'),
     path('teacher/attendance/remove/<int:record_id>/', views.remove_attendance, name='remove_attendance'),
     path('department/<int:department_id>/', views.department_report, name='department_report'),

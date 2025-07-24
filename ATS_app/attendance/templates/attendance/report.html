@@ -127,8 +127,11 @@
         <table class="info-table">
             <tbody>
                 <tr>
-                    <th>Course</th>
-                    <td>{{ course.code }} - {{ course.name }} </td>
+                    <th>Batch</th>
+                    <td>
+                        {{ batch.course.code }} - {{ batch.course.name }}<br>
+                        Year: {{ batch.academic_year }} | Part: {{ batch.part }}
+                    </td>
                 </tr>
                 <tr>
                     <th>Total Hours Taken</th>
