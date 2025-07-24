@@ -84,7 +84,7 @@ class Batch(models.Model):
         unique_together = ('course', 'academic_year', 'part')
 
     def __str__(self):
-        return f"{self.course.code} - {self.academic_year} - Part {self.part}"
+        return f"{self.course.name} - {self.academic_year} - Part {self.part}"
     
 # Student-Batch Mapping
 class StudentBatch(models.Model):
