@@ -71,3 +71,47 @@ class AbsentDetailsAdmin(admin.ModelAdmin):
     list_filter = ('status',)
 
 admin.site.register(AbsentDetails, AbsentDetailsAdmin)
+
+
+from django.contrib import admin
+from .models import (
+    Department, Programme, Student, Teacher, Course,
+    StudentBatch, TeacherBatch, Batch, HourDateBatch, NewAbsentDetails
+)
+
+
+
+# Batch Admin
+@admin.register(Batch)
+class BatchAdmin(admin.ModelAdmin):
+    list_display = ('course', 'academic_year', 'part', 'active')
+    list_filter = ('academic_year', 'part', 'active')
+    search_fields = ('course__name', 'course__code')
+
+# StudentBatch Admin
+@admin.register(StudentBatch)
+class StudentBatchAdmin(admin.ModelAdmin):
+    list_display = ('student', 'batch')
+    search_fields = ('student__name', 'batch__course__name')
+    list_filter = ('batch__academic_year', 'batch__course')
+
+# TeacherBatch Admin
+@admin.register(TeacherBatch)
+class TeacherBatchAdmin(admin.ModelAdmin):
+    list_display = ('teacher', 'batch')
+    search_fields = ('teacher__name', 'batch__course__name')
+    list_filter = ('batch__academic_year', 'batch__course')
+
+# HourDateBatch Admin
+@admin.register(HourDateBatch)
+class HourDateBatchAdmin(admin.ModelAdmin):
+    list_display = ('teacher_batch', 'date', 'hour')
+    search_fields = ('teacher_batch__teacher__name', 'date')
+    list_filter = ('date', 'hour')
+
+# AbsentDetails Admin
+@admin.register(NewAbsentDetails)
+class AbsentDetailsAdmin(admin.ModelAdmin):
+    list_display = ('student', 'hour_date_batch', 'status')
+    search_fields = ('student__name', 'hour_date_batch__teacher_batch__teacher__name')
+    list_filter = ('status',)
