@@ -105,8 +105,8 @@ class TeacherBatchAdmin(admin.ModelAdmin):
 # HourDateBatch Admin
 @admin.register(HourDateBatch)
 class HourDateBatchAdmin(admin.ModelAdmin):
-    list_display = ('teacher_batch', 'date', 'hour')
-    search_fields = ('teacher_batch__teacher__name', 'date')
+    list_display = ('batch', 'teacher', 'date', 'hour')
+    search_fields = ('batch__course__name', 'teacher__user__username', 'date')
     list_filter = ('date', 'hour')
 
 # AbsentDetails Admin

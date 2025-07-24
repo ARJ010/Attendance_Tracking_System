@@ -5,19 +5,21 @@ from datetime import date
 from datetime import datetime
 from django.db.models import Min,Count
 from django.shortcuts import render, get_object_or_404, redirect
+from django.utils.http import urlencode
+from django.template.loader import render_to_string
 from django.contrib.auth.forms import PasswordChangeForm
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
 from django.http import HttpResponse,Http404,JsonResponse, HttpResponseRedirect
-from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
+from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,NewAbsentDetails,Programme,Department, StudentBatch, Batch, TeacherBatch,HourDateBatch
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import IntegrityError
 from django.contrib import messages
 from django.db import transaction
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
-    UserEditForm,UserForm,CSVUploadForm,
+    UserEditForm,UserForm,CSVUploadForm,BatchForm
 )
 
 def calculate_year(current_date):
@@ -47,15 +49,67 @@ def index(request):
     return render(request, 'attendance/index.html')
 
 @login_required
-def student_list(request):
-    # Get the logged-in teacher's department
+def student_list(request, sem):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
-    
-    # Filter students based on the department
-    students = Student.objects.filter(programme__department=department).order_by('university_register_number')
-    
-    return render(request, 'attendance/student_list.html', {'students': students, 'department':department})
+
+    # Get all semesters available in this department's students
+    semesters = Student.objects.filter(programme__department=department).values_list('current_semester', flat=True).distinct().order_by('current_semester')
+
+    # Use the semester from the URL parameter
+    selected_semester = sem
+
+    # Filter students by department and selected semester
+    students = Student.objects.filter(
+        programme__department=department,
+        current_semester=selected_semester
+    ).order_by('university_register_number')
+
+    return render(request, 'attendance/student_list.html', {
+        'students': students,
+        'department': department,
+        'semesters': semesters,
+        'selected_semester': selected_semester,
+    })
+
+@login_required
+def semester_up(request):
+    teacher = Teacher.objects.get(user=request.user)
+    department = teacher.department
+
+    sem = request.POST.get('semester')
+    if not sem:
+        messages.error(request, "No semester selected.")
+        return redirect(reverse('student_list', args=[1]))
+
+    try:
+        sem = int(sem)
+    except (TypeError, ValueError):
+        messages.error(request, "Invalid semester.")
+        return redirect(reverse('student_list', args=[1]))
+
+    # Check if next semester already has students
+    next_sem = sem + 1
+    next_sem_students = Student.objects.filter(
+        programme__department=department,
+        current_semester=next_sem
+    )
+    if next_sem_students.exists():
+        messages.error(request, f"Cannot move up: Semester {next_sem} already has students.")
+        # Redirect to student_list with current semester
+        return redirect(reverse('student_list', args=[sem]))
+
+    # Move all students in current semester up by 1
+    students_to_update = Student.objects.filter(
+        programme__department=department,
+        current_semester=sem
+    )
+    updated_count = students_to_update.update(current_semester=next_sem)
+    messages.success(request, f"{updated_count} students moved from semester {sem} to {next_sem}.")
+
+    # Redirect to student_list with next semester selected
+    return redirect(reverse('student_list', args=[next_sem]))
+
 
 
 @login_required
@@ -70,7 +124,7 @@ def add_student(request):
             student = form.save(commit=False)
             student.programme.department = teacher.department  # Assign the department from the teacher
             student.save()
-            return redirect('student_list')  # Redirect to the student list after saving
+            return redirect(reverse('student_list', args=[student.current_semester]))  # Redirect to the student list after saving
     else:
         form = StudentForm(teacher=teacher)  # Pass the teacher to the form
 
@@ -90,14 +144,14 @@ def download_student_template(request):
 
     # Write the CSV data
     writer = csv.writer(response)
-    writer.writerow(['name', 'programme_name', 'university_register_number', 'admission_number'])  # Header
+    writer.writerow(['name', 'programme_name', 'year_of_enrolment', 'university_register_number', 'admission_number', 'current_semester'])  # Header
 
     # Add example rows
     example_programme = Programme.objects.filter(department=department).first()
     if example_programme:
-        writer.writerow(['John Doe', example_programme.name, '1234567890', 'ADM001'])
+        writer.writerow(['John Doe', example_programme.name, '2024', '1234567890', 'ADM001','1'])
     else:
-        writer.writerow(['John Doe', 'Example Programme', '1234567890', 'ADM001'])
+        writer.writerow(['John Doe', 'Example Programme', '2024', '1234567890', 'ADM001','1'])
 
     return response
 
@@ -120,7 +174,9 @@ def upload_students(request):
                 programme_name = row.get('programme_name')  # Programme name from CSV
                 student_name = clean_name(row.get('name'))  # Clean and validate the student name
                 university_register_number = row.get('university_register_number')
+                year_of_enrolment = row.get('year_of_enrolment')
                 admission_number = row.get('admission_number')
+                current_semester = row.get('current_semester')
 
                 # Check for existing students by unique fields
                 if Student.objects.filter(university_register_number=university_register_number).exists():
@@ -150,13 +206,15 @@ def upload_students(request):
                 # Create the student if all validations pass
                 Student.objects.create(
                     name=student_name,
+                    year_of_enrolment =year_of_enrolment,
                     university_register_number=university_register_number,
                     admission_number=admission_number,
-                    programme=programme
+                    programme=programme,
+                    current_semester=current_semester
                 )
 
             messages.success(request, 'Students uploaded successfully!')
-            return redirect('student_list')
+            return redirect(reverse('student_list', args=[current_semester]))
     else:
         form = CSVUploadForm()
 
@@ -171,7 +229,7 @@ def remove_student(request, id):
     # Optionally check if the user has permissions to delete the student
     student.delete()
     
-    return redirect('student_list')
+    return redirect(reverse('student_list', args=[student.current_semester]))
 
 @login_required
 @user_passes_test(HoD_group_required)
@@ -180,13 +238,13 @@ def edit_student(request, id):
     teacher = student.programme.department.teachers.filter(user=request.user).first()  # Use 'teachers' instead of 'teacher_set'
     
     if not teacher:
-        return redirect('student_list')  # If the teacher isn't part of the student's department, redirect
+        return redirect(reverse('student_list', args=[student.current_semester]))  # If the teacher isn't part of the student's department, redirect
 
     if request.method == 'POST':
         form = StudentForm(request.POST, instance=student, teacher=teacher)
         if form.is_valid():
             form.save()
-            return redirect('student_list')  # Redirect to the student list after saving
+            return redirect(reverse('student_list', args=[student.current_semester])) # Redirect to the student list after saving
     else:
         form = StudentForm(instance=student, teacher=teacher)
     
@@ -414,46 +472,48 @@ def delete_teacher(request, teacher_id):
     return redirect('teacher_list')
 
 @login_required
-def course_list(request):
+def course_list(request, sem):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
     user = request.user
+
+    # Filter courses by department and semester
     if user.groups.filter(name='HoD').exists():
-            courses = Course.objects.filter(department=teacher.department)
+        courses = Course.objects.filter(department=department, semester=sem)
     else:
         teacher_courses = TeacherCourse.objects.filter(teacher=teacher)
-        courses = Course.objects.filter(id__in=teacher_courses.values('course'))
-    
+        courses = Course.objects.filter(id__in=teacher_courses.values('course'), semester=sem)
+
     teachers = Teacher.objects.filter(department=department)
-    
+
     # List of students for each course (only for HoD)
+    course_students = None
     if user.groups.filter(name='HoD').exists():
         course_students = {}
         for course in courses:
             students = StudentCourse.objects.filter(course=course).values('student__name')
             course_students[course] = students
-    
+
     return render(request, 'attendance/course_list.html', {
         'teachers': teachers,
         'department': department,
         'courses': courses,
-        'course_students': course_students if user.groups.filter(name='HoD').exists() else None,
+        'course_students': course_students,
+        'selected_semester': sem,
     })
 
-
-
 @login_required
-def get_assigned_students(request, course_id):
-    students = StudentCourse.objects.filter(course_id=course_id).select_related('student__programme')
-    
+def get_assigned_batch_students(request, batch_id):
+    students = StudentBatch.objects.filter(batch_id=batch_id).select_related('student__programme')
+
     students_data = [{
-        'id': student.student.id,  # Include the student's ID
-        'c_id': course_id,
-        'name': student.student.name,
-        'university_register_number': student.student.university_register_number,
-        'programme': student.student.programme.name  # Assuming 'name' is the field in Programme
-    } for student in students]
-    
+        'id': sb.student.id,
+        'b_id': batch_id,
+        'name': sb.student.name,
+        'university_register_number': sb.student.university_register_number,
+        'programme': sb.student.programme.name
+    } for sb in students]
+
     return JsonResponse({'students': students_data})
 
 # View for managing Course
@@ -486,191 +546,241 @@ def edit_course(request, course_id):
         form = CourseForm(instance=course, logged_in_teacher=logged_in_teacher)
     return render(request, 'attendance/edit_course.html', {'form': form, 'course': course})
 
+@login_required
+def create_batch(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    if request.method == 'POST':
+        form = BatchForm(request.POST)
+        if form.is_valid():
+            batch = form.save(commit=False)
+            batch.course = course
+            # Set academic_year automatically
+            batch.academic_year = calculate_year(date.today())
+            batch.save()
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('course_list', course.semester)
+        else:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                html = render_to_string('attendance/partial_create_batch_form.html', {'form': form, 'course': course}, request)
+                return JsonResponse({'success': False, 'form_html': html})
+    else:
+        form = BatchForm()
+    return render(request, 'attendance/create_batch.html', {'form': form, 'course': course})
+
+@login_required
+def create_batch_form(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    form = BatchForm()
+    html = render_to_string('attendance/partial_create_batch_form.html', {'form': form, 'course': course}, request)
+    return HttpResponse(html)
+
+@login_required
+def toggle_batch_active(request, batch_id):
+    batch = get_object_or_404(Batch, id=batch_id)
+    batch.active = not batch.active
+    batch.save()
+    status = "activated" if batch.active else "deactivated"
+    messages.success(request, f"Batch {batch} has been {status}.")
+    # Redirect back to the course list or wherever you want
+    return redirect(request.META.get('HTTP_REFERER', reverse('course_list', args=[batch.course.semester])))
 
 
 @login_required
 @user_passes_test(HoD_group_required)
-def teacher_course_assign(request):
+def teacher_batch_assign(request, sem):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
-    user = request.user
-    courses = Course.objects.filter(department=teacher.department)
-    course_teacher_map = {}
 
-    # Ensure the logged-in user is a teacher
-    if hasattr(user, 'teacher'):
-        teacher = user.teacher
+    # Get all active batches under the department's courses for the given semester
+    batches = Batch.objects.filter(
+        course__department=department,
+        course__semester=sem,
+        active=True
+    ).select_related('course')
 
-        # Create a map of course to its assigned teachers
-        for course in courses:
-            assigned_teachers = TeacherCourse.objects.filter(course=course)
-            course_teacher_map[course] = [tc.teacher.user.first_name for tc in assigned_teachers]
+    # Map each batch to its assigned teachers via TeacherCourse
+    batch_teacher_map = {}
+    for batch in batches:
+        assigned_teachers = TeacherCourse.objects.filter(course=batch.course)
+        batch_teacher_map[batch] = [tc.teacher.user.first_name for tc in assigned_teachers]
 
-    # Get all teachers for the dropdown
+    # Get all teachers in the department for dropdown
     teachers = Teacher.objects.filter(department=department)
 
-    return render(request, 'attendance/teacher_course_form.html', {
-        'courses': courses,
-        'department':department,
-        'course_teacher_map': course_teacher_map,
-        'teachers': teachers,  # Pass the teachers list to the template
+    return render(request, 'attendance/teacher_batch_form.html', {
+        'batches': batches,
+        'department': department,
+        'batch_teacher_map': batch_teacher_map,
+        'teachers': teachers,
+        'selected_semester': sem,
     })
 
+
 @login_required
-def get_assigned_teachers(request, course_id):
+def get_assigned_teachers_for_batch(request, batch_id):
     try:
-        course = Course.objects.get(id=course_id)
-        teacher_courses = TeacherCourse.objects.filter(course=course)
-        teachers = [{"id": tc.teacher.id, "first_name": tc.teacher.user.first_name} for tc in teacher_courses]
+        batch = Batch.objects.get(id=batch_id)
+        teacher_batches = TeacherBatch.objects.filter(batch=batch)
+        teachers = [{"id": tb.teacher.id, "first_name": tb.teacher.user.first_name} for tb in teacher_batches]
         return JsonResponse({"teachers": teachers})
-    except Course.DoesNotExist:
-        return JsonResponse({"error": "Course not found"}, status=404)
+    except Batch.DoesNotExist:
+        return JsonResponse({"error": "Batch not found"}, status=404)
 
 
 @login_required
 @user_passes_test(HoD_group_required)
-def assign_teachers(request):
+def assign_teachers_to_batch(request):
     if request.method == 'POST':
-        course_id = request.POST.get('course_id')
-        teacher_ids = request.POST.getlist('teachers')  # Get selected teacher IDs
+        batch_id = request.POST.get('batch_id')
+        teacher_ids = request.POST.getlist('teachers')  # List of selected teacher IDs
 
-        course = get_object_or_404(Course, id=course_id)
-        year = calculate_year(date.today())  # Use the calculate_year function
+        batch = get_object_or_404(Batch, id=batch_id)
 
-        # Create TeacherCourse records for the selected teachers
         for teacher_id in teacher_ids:
             teacher = get_object_or_404(Teacher, id=teacher_id)
 
-            # Check if the teacher is already assigned to the course for the current year
-            if TeacherCourse.objects.filter(course=course, teacher=teacher, year=year).exists():
-                # Use teacher.user.get_full_name() or another field for the teacher's name
-                messages.warning(request, f"Teacher {teacher.user.get_full_name()} is already assigned to the course {course.name} for the year {year}.")
+            # Check for existing assignment
+            if TeacherBatch.objects.filter(batch=batch, teacher=teacher).exists():
+                messages.warning(request, f"Teacher {teacher.user.get_full_name()} is already assigned to batch {batch.academic_year}-{batch.part}.")
             else:
-                # Create the new TeacherCourse record if no duplicate exists
-                TeacherCourse.objects.create(course=course, teacher=teacher, year=year)
+                TeacherBatch.objects.create(batch=batch, teacher=teacher)
 
-        return redirect('teacher_course_assign')  # Redirect to course list after saving
+        return redirect(reverse('teacher_batch_assign', args=[batch.course.semester])) # Redirect to the batch-assignment page
 
-# Remove teachers from a course
+
 @login_required
 @user_passes_test(HoD_group_required)
-def remove_teachers(request):
+def remove_teachers_from_batch(request):
     if request.method == 'POST':
-        course_id = request.POST.get('course_id')
+        batch_id = request.POST.get('batch_id')
         teacher_ids = request.POST.getlist('teachers_to_remove')
 
         try:
-            # Get the course object
-            course = Course.objects.get(id=course_id)
-
-            # Loop through the selected teacher IDs and remove them
+            batch = Batch.objects.get(id=batch_id)
             for teacher_id in teacher_ids:
-                # Find the TeacherCourse object and remove it
-                teacher_course = TeacherCourse.objects.get(course=course, teacher_id=teacher_id)
-                teacher_course.delete()
+                try:
+                    teacher_batch = TeacherBatch.objects.get(batch=batch, teacher_id=teacher_id)
+                    teacher_batch.delete()
+                except TeacherBatch.DoesNotExist:
+                    messages.warning(request, f"Teacher ID {teacher_id} not assigned to batch {batch.academic_year}-{batch.part}.")
 
-            # Success message
             messages.success(request, "Teachers removed successfully.")
 
-        except Course.DoesNotExist:
-            raise Http404("Course not found.")
-        except TeacherCourse.DoesNotExist:
-            messages.error(request, "Some teachers were not assigned to this course.")
-        
-        # Redirect to course list or the page where you want
-        return redirect('teacher_course_assign')  # Adjust the redirect URL as needed
+        except Batch.DoesNotExist:
+            raise Http404("Batch not found.")
 
-    # If the request is not POST, redirect to the course list page
-    return redirect('teacher_course_assign')
+
+        return redirect(reverse('teacher_batch_assign', args=[batch.course.semester]))
+
+
+    return redirect(reverse('teacher_batch_assign', args=[batch.course.semester]))
 
 
 @login_required
 @user_passes_test(HoD_group_required)
-def student_course_assign(request):
+def student_batch_assign(request, sem):
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
-    students = Student.objects.filter(programme__department=department).order_by('university_register_number')
 
-    # Prepare the student_courses_map for all students
-    student_courses_map = {}
-    for student in students:
-        student_courses_map[student] = StudentCourse.objects.filter(student=student).order_by('course__code')
-    
-    # If the request method is POST, handle form submission
-    if request.method == 'POST':
+    students = Student.objects.filter(
+        programme__department=department, 
+        current_semester=sem
+    ).order_by('university_register_number')
+
+    batch_query = Batch.objects.filter(
+        active=True, 
+        course__semester=sem
+    ).select_related('course')
+    all_batches = batch_query.order_by('course__code')
+
+    student_batches = StudentBatch.objects.select_related('batch__course', 'student').filter(student__in=students)
+    student_batches_map = {}
+    for sb in student_batches:
+        student_batches_map.setdefault(sb.student.id, []).append(sb)
+
+    if request.method == 'POST' and request.POST.get('action') == 'assign':
         student_id = request.POST.get('student_id')
-        student = Student.objects.get(id=student_id)
-        selected_course_ids = request.POST.getlist('courses')
+        student = get_object_or_404(Student, id=student_id)
 
-        # Ensure courses are selected
-        if selected_course_ids:
-            # Assign courses to the selected student
-            for course_id in selected_course_ids:
-                course = Course.objects.get(id=course_id)
-                # Check if the student is already assigned to the course
-                if not StudentCourse.objects.filter(student=student, course=course).exists():
-                    StudentCourse.objects.create(student=student, course=course)
-            messages.success(request, f"Courses successfully assigned to {student.name}.")
+        # Ensure student semester matches the parameter
+        if str(student.current_semester) != str(sem):
+            messages.error(request, "Student semester mismatch.")
+            return redirect('student_batch_assign', sem=sem)
+
+        selected_batch_ids = request.POST.getlist('batches')
+
+        if selected_batch_ids:
+            assigned = False
+            for batch_id in selected_batch_ids:
+                batch = get_object_or_404(Batch, id=batch_id)
+                # Ensure batch's course semester matches the parameter
+                if str(batch.course.semester) != str(sem):
+                    messages.warning(request, f"Batch {batch} does not belong to semester {sem}. Skipped.")
+                    continue
+                StudentBatch.objects.get_or_create(student=student, batch=batch)
+                assigned = True
+            if assigned:
+                messages.success(request, f"Batches assigned to {student.name}.")
+            else:
+                messages.warning(request, "No valid batches assigned.")
         else:
-            messages.error(request, "No courses were selected for assignment.")
-        
-        return redirect('student_course_assign')  # Redirect after saving assignments
-    
-    all_courses = Course.objects.all().select_related('department').order_by('department__name', 'name')
+            messages.warning(request, "No batches selected.")
+        return redirect('student_batch_assign', sem=sem)
 
-    # Ensure the selected student is passed to the template
-    selected_student = students.first()  # Example: default to the first student, update as per your logic
-    selected_student_courses = student_courses_map.get(selected_student, [])
-
-    return render(request, 'attendance/student_course_form.html', {
+    return render(request, 'attendance/student_batch_form.html', {
         'students': students,
-        'all_courses': all_courses,
-        'student_courses_map': student_courses_map,
-        'selected_student_courses': selected_student_courses,  # Pass the courses of the selected student
-        'selected_student': selected_student,  # Pass the selected student for further reference
+        'all_batches': all_batches,
+        'student_batches_map': student_batches_map,
+        'selected_semester': sem,
     })
 
 
-# View to get assigned courses for a student
 @login_required
-def get_assigned_courses(request, student_id):
-    student = Student.objects.get(id=student_id)
-    student_courses = StudentCourse.objects.filter(student=student)
-    courses = [student_course.course for student_course in student_courses]
-    
-    # Prepare the course data to send back
-    course_data = [{'id': course.id, 'code': course.code, 'name': course.name} for course in courses]
-    
-    return JsonResponse({'courses': course_data})
+def get_assigned_batches(request, student_id):
+    try:
+        student = Student.objects.get(id=student_id)
+    except Student.DoesNotExist:
+        raise Http404("Student not found")
+    # THIS LINE IS CRUCIAL:
+    student_batches = StudentBatch.objects.filter(
+        student=student,
+        batch__course__semester=student.current_semester
+    ).select_related('batch__course')
+    batch_data = []
+    for sb in student_batches:
+        batch = sb.batch
+        course = batch.course
+        batch_data.append({
+            'id': batch.id,
+            'code': course.code,
+            'course_name': course.name,
+            'academic_year': batch.academic_year,
+            'part': batch.part,
+        })
+    return JsonResponse({'batches': batch_data})
 
 @login_required
 @user_passes_test(HoD_group_required)
-def remove_courses(request):
+def remove_student_batches(request):
     if request.method == 'POST':
         student_id = request.POST.get('student_id')
-        courses_to_remove = request.POST.getlist('courses_to_remove')
+        batch_ids = request.POST.getlist('batches_to_remove')
 
-        # Debugging: Log the received course IDs and student ID
-        print(f"Student ID: {student_id}")
-        print(f"Courses to Remove: {courses_to_remove}")
+        student = get_object_or_404(Student, id=student_id)
+        removed_count, _ = StudentBatch.objects.filter(student=student, batch__id__in=batch_ids).delete()
 
-        if student_id and courses_to_remove:
-            student = get_object_or_404(Student, id=student_id)
+        messages.success(request, f"Removed {removed_count} batches from {student.name}.")
+        return redirect('student_batch_assign', sem=student.current_semester)
 
-            # Using transaction to ensure the deletion happens
-            with transaction.atomic():
-                # Delete the selected courses for the student
-                StudentCourse.objects.filter(student=student, course_id__in=courses_to_remove).delete()
-                messages.success(request, f"Selected courses have been removed from {student.name}.")
-        else:
-            messages.error(request, "No courses were selected for removal.")
-
-        return redirect('student_course_assign')  # Redirect back to the form page
+    messages.error(request, "Invalid request.")
+    return redirect('student_batch_assign', sem=student.current_semester)
 
 
-@login_required
-def take_attendance(request, course_id):
-    teacher = request.user.teacher
+
+@login_required 
+def take_attendance(request, course_id): 
+    teacher = request.user.teacher 
     course = get_object_or_404(Course, id=course_id)
 
     if not TeacherCourse.objects.filter(teacher=teacher, course=course).exists():
@@ -735,6 +845,76 @@ def take_attendance(request, course_id):
         'today': date.today(),
         'hours': range(1, 6),
         'sort_by': sort_by,  # Pass sorting method to template
+    })
+
+
+@login_required
+def take_attendance(request, batch_id):
+    teacher = request.user.teacher
+    batch = get_object_or_404(Batch, id=batch_id)
+    course = batch.course
+
+    # Authorization: check if teacher is assigned to this course
+    if not TeacherBatch.objects.filter(teacher=teacher, batch=batch).exists():
+        messages.error(request, "You are not authorized to take attendance for this course.")
+        return redirect('course_list', sem=course.semester)  # or your course list URL
+
+    # Get students assigned to this batch
+    student_batches = StudentBatch.objects.filter(batch=batch)
+    students = [sb.student for sb in student_batches]
+
+    # Sorting
+    sort_by = request.GET.get('sort_by', 'university_register_number')
+    if sort_by == "roll_no":
+        students.sort(key=lambda student: student.roll_no if student.roll_no else "")
+    else:
+        students.sort(key=lambda student: student.university_register_number)
+
+    if request.method == 'POST':
+        attendance_date_str = request.POST.get('date', '')
+        if not attendance_date_str:
+            messages.warning(request, "Please select a date for taking attendance.")
+            return redirect(request.path)
+
+        attendance_date = date.fromisoformat(attendance_date_str)
+        selected_hours = request.POST.getlist('hours')
+        if not selected_hours:
+            messages.warning(request, "Please select at least one hour to record attendance.")
+            return redirect(request.path)
+
+        for hour in selected_hours:
+            try:
+                hour_date_batch = HourDateBatch.objects.create(
+                    batch=batch,
+                    teacher=teacher,
+                    date=attendance_date,
+                    hour=int(hour),
+                )
+                messages.success(request, f"Attendance successfully recorded for Hour {hour}")
+            except IntegrityError:
+                existing_record = HourDateBatch.objects.get(batch=batch, date=attendance_date, hour=int(hour))
+                teacher_full_name = f"{existing_record.teacher.user.first_name} {existing_record.teacher.user.last_name}"
+                teacher_phone = existing_record.teacher.phone_number
+                messages.warning(request, f"Attendance already taken by {teacher_full_name} ({teacher_phone}) in Hour {hour} on {attendance_date}")
+                continue
+
+            for student in students:
+                if f'students_{student.id}' in request.POST:
+                    NewAbsentDetails.objects.update_or_create(
+                        hour_date_batch=hour_date_batch,
+                        student=student,
+                        defaults={'status': False}
+                    )
+
+        return redirect('course_list', sem=course.semester)
+
+    return render(request, 'attendance/take_attendance.html', {
+        'course': course,
+        'batch': batch,
+        'students': students,
+        'today': date.today(),
+        'hours': range(1, 6),
+        'sort_by': sort_by,
     })
 
 

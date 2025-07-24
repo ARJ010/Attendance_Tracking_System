@@ -2,12 +2,16 @@
 from django import template
 import json
 
-
 register = template.Library()
 
 @register.filter
 def get_item(dictionary, key):
-    return dictionary.get(key)
+    return dictionary.get(key, [])
+
+@register.filter
+def filter_by_semester(student_batches, semester):
+    return [sb for sb in student_batches if str(sb.batch.course.semester) == str(semester)]
+
 
 @register.filter
 def jsonify(value):
@@ -30,10 +34,3 @@ def obj_to_dict(obj):
     return {}
 
 
-
-@register.filter
-def get_item(lst, idx):
-    try:
-        return lst[idx]
-    except IndexError:
-        return None  # or an empty string or any default value you prefer

@@ -1,8 +1,8 @@
 /* General Styles */
 html, body {
     font-family: 'Arial', sans-serif;
-    background-color: #f8f9fa; /* Light background color for the entire page */
-    color: #212529; /* Standard text color */
+    background-color: #f8f9fa;
+    color: #212529;
     height: 100%;
     margin: 0;
     display: flex;
@@ -11,7 +11,7 @@ html, body {
 
 /* Navbar Styles */
 .navbar {
-    border-bottom: 2px solid #343a40; /* Adds a subtle border to the navbar */
+    border-bottom: 2px solid #343a40;
 }
 
 .navbar-brand {
@@ -26,7 +26,41 @@ html, body {
 }
 
 .nav-item .nav-link:hover {
-    color: #ffc107; /* Highlighted link color */
+    color: #ffc107;
+}
+
+/* Dropdown - Dark Futuristic Style */
+.nav-item.dropdown .nav-link {
+    font-weight: bold;
+}
+
+.semester-dropdown {
+    background-color: #2c2f33; /* Soft dark tone */
+    border: 1px solid #444;
+    border-radius: 8px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.semester-dropdown .dropdown-item {
+    color: #e0e0e0;
+    font-weight: 500;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.semester-dropdown .dropdown-item:hover {
+    background-color: #ffc10733; /* Subtle amber hover */
+    color: #ffc107;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.navbar-nav .dropdown:hover .dropdown-menu {
+    display: block;
+    margin-top: 0;
 }
 
 /* Footer Styles */
@@ -36,13 +70,12 @@ footer {
     font-size: 0.9rem;
     text-align: center;
     padding: 10px 0;
-    /* Optional box shadow for visual separation */
     box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* Main Content */
 .container {
-    flex: 1; /* Ensures the container takes up remaining space */
+    flex: 1;
     background-color: #ffffff;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -121,7 +154,7 @@ table tr:hover {
     border-color: #f5c6cb;
 }
 
-/* Custom Utility Classes */
+/* Utility Classes */
 .text-center {
     text-align: center;
 }
@@ -134,7 +167,7 @@ table tr:hover {
     margin-bottom: 1.5rem;
 }
 
-.logout{
+.logout {
     background-color: transparent;
     border-radius: 34%;
     color: white;

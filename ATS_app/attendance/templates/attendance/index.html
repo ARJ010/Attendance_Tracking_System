@@ -134,13 +134,15 @@ Attendance Tracking System
 
 <!-- Navigation Buttons -->
 <div class="nav-buttons">
-    <a href="{% url 'student_list' %}">📚 Students</a>
-    <a href="{% url 'teacher_list' %}">👨‍🏫 Teachers</a>
-    <a href="{% url 'course_list' %}">📖 Courses</a>
-    {% if is_hod %}
-        <a href="{% url 'student_course_assign' %}">📝 Assign Student</a>
-        <a href="{% url 'teacher_course_assign' %}">🎓 Assign Teacher</a>
+    {% if semesters %}
+        <a href="{% url 'student_list' sem=semesters.0 %}">📚 Students</a>
+        <a href="{% url 'course_list' sem=course_semesters.0 %}">📖 Courses</a>
+        {% if is_hod %}
+            <a href="{% url 'student_batch_assign' sem=semesters.0 %}">📝 Assign Student</a>
+            <a href="{% url 'teacher_batch_assign' sem=course_semesters.0 %}">🎓 Assign Teacher</a>
+        {% endif %}
     {% endif %}
+    <a href="{% url 'teacher_list' %}">👨‍🏫 Teachers</a>
     <a href="{% url 'teacher_attendance_list' %}">📊 Attendance Taken</a>
 </div>
 

@@ -9,5 +9,9 @@
         {{ form.as_p }}
         <button type="submit" class="btn btn-primary">Add Student</button>
     </form>
-    <a href="{% url 'student_list' %}" class="btn btn-secondary mt-3">Cancel</a>
+    {% if semesters %}
+    <a href="{% url 'student_list' semesters.0 %}" class="btn btn-secondary mt-3">Cancel</a>
+    {% else %}
+        <a href="{% url 'student_list' 1 %}" class="btn btn-secondary mt-3 disabled">Cancel</a>
+    {% endif %}
 {% endblock %}

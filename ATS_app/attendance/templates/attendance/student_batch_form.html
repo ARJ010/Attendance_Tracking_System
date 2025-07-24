@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Student Batch Assignment{% endblock %}
+
+{% block extra_head %}
+<style>
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+    .modal.show {
+        display: flex;
+        opacity: 1;
+    }
+    .modal-content {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 8px;
+        width: 700px;
+        max-height: 70vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .modal-content form {
+        display: flex;
+        flex-direction: column;
+    }
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    .courses-list, .department-courses {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+        padding: 15px 0;
+    }
+    .courses-list input[type="checkbox"],
+    .department-courses input[type="checkbox"] {
+        display: none;
+    }
+    .courses-list label,
+    .department-courses label {
+        display: block;
+        padding: 12px 20px;
+        background-color: #f5f5f5;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        font-weight: 500;
+        color: #333;
+    }
+    .courses-list label:hover,
+    .department-courses label:hover {
+        background-color: #e9e9e9;
+        transform: translateY(-2px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    input[type="checkbox"]:checked + label {
+        background-color: #4CAF50;
+        color: white;
+        border-color: #45a049;
+    }
+    .department-section {
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+    }
+    .department-header {
+        margin: 0;
+        background-color: #f5f5f5;
+    }
+    .department-toggle {
+        width: 100%;
+        padding: 15px;
+        text-align: left;
+        background: none;
+        border: none;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .department-toggle:hover {
+        background-color: #e9e9e9;
+    }
+    .department-courses.collapsed {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Assign Batches to Students || Semester: {{ selected_semester }}</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Register Number</th>
+            <th>Name</th>
+            <th>Assigned Batches</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for student in students %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ student.university_register_number }}</td>
+            <td>{{ student.name }}</td>
+            <td>
+                <ol>
+                {% for sb in student_batches_map|get_item:student.id|filter_by_semester:selected_semester %}
+                    <li>{{ sb.batch.course.code }} - {{ sb.batch.course.name }} ({{ sb.batch.academic_year }} - Part {{ sb.batch.part }})</li>
+                {% empty %}
+                    <li><em>No batches assigned</em></li>
+                {% endfor %}
+                </ol>
+            </td>
+            <td>
+                <button class="btn btn-success btn-sm" onclick="showModal('{{ student.id }}')">Assign</button>
+                <button class="btn btn-danger btn-sm" onclick="showRemoveBatchesModal('{{ student.id }}')">Remove</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Assign Modal -->
+<div id="courseModal" class="modal">
+    <div class="modal-content">
+        <h2>Select Batches</h2>
+        <form method="POST" id="courseForm">
+            {% csrf_token %}
+            <input type="hidden" name="student_id" id="studentId">
+            <input type="hidden" name="action" value="assign">
+
+            <div class="departments-list">
+                {% regroup all_batches by course.department as department_list %}
+                {% for department in department_list %}
+                    <div class="department-section">
+                        <h3 class="department-header">
+                            <button type="button" class="department-toggle" onclick="toggleDepartment(this)">
+                                ▶ {{ department.grouper.name }}
+                            </button>
+                        </h3>
+                        <div class="department-courses collapsed">
+                            {% for batch in department.list %}
+                                <div>
+                                    <input type="checkbox" id="batch_{{ batch.id }}" name="batches" value="{{ batch.id }}">
+                                    <label for="batch_{{ batch.id }}">
+                                        {{ batch.course.code }} - {{ batch.course.name }} ({{ batch.academic_year }} - Part {{ batch.part }})
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="modal-actions">
+                <button type="submit">Save</button>
+                <button type="button" onclick="closeModal('courseModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Remove Modal -->
+<div id="removeCoursesModal" class="modal">
+    <div class="modal-content">
+        <h2>Remove Batches</h2>
+        <form method="POST" action="{% url 'remove_student_batches' %}">
+            {% csrf_token %}
+            <input type="hidden" name="student_id" id="removeStudentId">
+            <div class="courses-list" id="coursesToRemoveList">
+                <!-- Populated by JS -->
+            </div>
+            <div class="modal-actions">
+                <button type="submit">Remove</button>
+                <button type="button" onclick="closeModal('removeCoursesModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const assignModal = document.getElementById('courseModal');
+    const removeModal = document.getElementById('removeCoursesModal');
+    const studentIdInput = document.getElementById('studentId');
+    const removeStudentIdInput = document.getElementById('removeStudentId');
+
+    // Store all batch checkboxes for easy access
+    function getAllBatchCheckboxes() {
+        return Array.from(document.querySelectorAll('#courseModal input[type="checkbox"][name="batches"]'));
+    }
+
+    function showModal(studentId) {
+        studentIdInput.value = studentId;
+        // Uncheck and enable all checkboxes first
+        getAllBatchCheckboxes().forEach(cb => {
+            cb.checked = false;
+            cb.disabled = false;
+        });
+    
+        // Fetch assigned batches for this student and pre-check/disable them
+        fetch(`/get_assigned_batches/${studentId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.batches && data.batches.length > 0) {
+                    data.batches.forEach(batch => {
+                        const cb = document.getElementById('batch_' + batch.id);
+                        if (cb) {
+                            cb.checked = true;
+                            cb.disabled = true; // Prevent re-assigning
+                        }
+                    });
+                }
+                assignModal.classList.add('show');
+            })
+            .catch(error => {
+                console.error('Error fetching assigned batches:', error);
+                assignModal.classList.add('show');
+            });
+    }
+
+    function showRemoveBatchesModal(studentId) {
+        removeStudentIdInput.value = studentId;
+
+        fetch(`/get_assigned_batches/${studentId}/`)
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('coursesToRemoveList');
+                container.innerHTML = '';
+
+                if (data.batches.length > 0) {
+                    data.batches.forEach(batch => {
+                        const div = document.createElement('div');
+                        const batchLabel = `${batch.code} - ${batch.course_name} (${batch.academic_year} - Part ${batch.part})`;
+                        div.innerHTML = `
+                            <input type="checkbox" id="remove_batch_${batch.id}" name="batches_to_remove" value="${batch.id}">
+                            <label for="remove_batch_${batch.id}">${batchLabel}</label>
+                        `;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = '<p>No batches assigned to this student.</p>';
+                }
+                removeModal.classList.add('show');
+            })
+            .catch(error => {
+                console.error('Error fetching batches:', error);
+            });
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.classList.remove('show');
+    }
+
+    function toggleDepartment(button) {
+        const container = button.closest('.department-section').querySelector('.department-courses');
+        const collapsed = container.classList.contains('collapsed');
+        container.classList.toggle('collapsed');
+        button.textContent = collapsed
+            ? button.textContent.replace('▶', '▼')
+            : button.textContent.replace('▼', '▶');
+    }
+</script>
+{% endblock %}

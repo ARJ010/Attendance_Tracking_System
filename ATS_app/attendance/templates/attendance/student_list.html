@@ -4,70 +4,331 @@
 
 {% block extra_head %}
 <style>
-    .sortable {
-        cursor: pointer;
-        user-select: none;
-        padding-right: 15px;
+    body {
+        background: #f7f8fa;
+    }
+    
+    .page-content {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem 1rem 3rem 1rem;
+    }
+    
+    h2 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 1.2rem;
+        color: #2c3e50;
+        letter-spacing: 0.5px;
+    }
+    
+    .semester-controls-row {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2.2rem;
+        padding: 1.1rem 1.5rem;
+        background: rgba(255,255,255,0.7);
+        border-radius: 18px;
+        box-shadow: 0 8px 32px 0 rgba(31,38,135,0.13);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        border: 1.5px solid rgba(255,255,255,0.18);
+        max-width: 600px;
+        margin-left: 0;
+    }
+    
+    .semester-controls-row form {
+        display: flex;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .semester-controls-row label {
+        font-weight: 600;
+        margin-right: 0.7rem;
+        font-size: 1.08rem;
+        color: #2d3748;
+        letter-spacing: 0.02em;
+    }
+    
+    .semester-controls-row select {
+        padding: 0.45rem 1.2rem 0.45rem 0.8rem;
+        border-radius: 8px;
+        border: 1.5px solid #b2bec3;
+        font-size: 1.08rem;
+        background: rgba(245, 246, 250, 0.85);
+        color: #222;
+        margin-right: 0.7rem;
+        min-width: 120px;
+        box-shadow: 0 2px 8px rgba(44,62,80,0.04);
+        transition: border 0.2s, box-shadow 0.2s;
+    }
+    .semester-controls-row select:focus {
+        border: 1.5px solid #6c63ff;
+        outline: none;
+        box-shadow: 0 0 0 2px #6c63ff33;
+    }
+    
+    
+    @media (max-width: 700px) {
+        .semester-controls-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+            padding: 0.8rem 0.7rem;
+            max-width: 100%;
+        }
+        .semester-controls-row form {
+            width: 100%;
+        }
+        .semester-controls-row select,
+        .semester-controls-row button {
+            width: 100%;
+            margin: 0;
+        }
+    }
+    .action-buttons a {
+        margin-right: 0.4rem;
+        margin-bottom: 0.2rem;
+        display: inline-block;
+    }
+    
+    .table-container {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 12px rgba(44,62,80,0.07);
+        padding: 1.2rem;
+        margin-top: 1.2rem;
+        overflow-x: auto;
+    }
+    
+    #studentTable {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        font-size: 1rem;
+    }
+    
+    #studentTable th, #studentTable td {
+        padding: 0.7rem 0.8rem;
+        border-bottom: 1px solid #eaeaea;
+        text-align: left;
+    }
+    
+    #studentTable th {
+        background: #f5f6fa;
+        font-weight: 700;
+        color: #34495e;
         position: relative;
     }
-    .sortable span {
-        position: absolute;
-        right: 0;
-        font-size: 14px;
-        transition: all 0.3s ease;
+    
+    #studentTable tr:hover {
+        background: #f9fbe7;
+    }
+    
+    #studentTable th.sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.2s;
+    }
+    
+    #studentTable th.sortable:hover {
+        background: #ffe082;
+    }
+    
+    #studentTable th .sort-arrow {
+        font-size: 1em;
+        margin-left: 0.3em;
+        color: #bdb76b;
+    }
+    
+    .text-center {
+        text-align: center;
+    }
+
+    .elegant-btn, .elegant-btn:visited {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.45rem 1.3rem;
+        border-radius: 6px;
+        border: 1.5px solid #b0b4ba;
+        background: #f7f8fa;
+        color: #222;
+        font-weight: 500;
+        font-size: 1.05rem;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(44,62,80,0.06);
+        transition: background 0.18s, border 0.18s, color 0.18s, box-shadow 0.18s;
+        margin-left: 0.7rem;
+        text-decoration: none;
+        letter-spacing: 0.01em;
+        gap: 0.5em;
+    }
+    .elegant-btn:hover, .elegant-btn:focus {
+        background: #e9ecef;
+        border-color: #888;
+        color: #111;
+        box-shadow: 0 2px 8px rgba(44,62,80,0.10);
+        text-decoration: none;
+    }
+    .elegant-btn-secondary {
+        background: #f3f4f7;
+        color: #2d3748;
+        border-color: #b0b4ba;
+    }
+    .elegant-btn-secondary:hover, .elegant-btn-secondary:focus {
+        background: #e2e6ea;
+        color: #111;
+        border-color: #888;
+    }
+    .semester-controls-row button.elegant-btn {
+        margin-left: 0.7rem;
+    }
+    .semester-controls-row a.elegant-btn {
+        margin-left: 0.7rem;
+    }
+    .semester-controls-row {
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        margin-bottom: 2.2rem;
+        flex-wrap: wrap;
+        background: none;
+        box-shadow: none;
+        border: none;
+        padding: 0;
+        max-width: 900px;
+        margin-left: 0;
+    }
+    .semester-controls-row form {
+        display: flex;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+    }
+    .semester-controls-row label {
+        font-weight: 600;
+        margin-right: 0.7rem;
+        font-size: 1.08rem;
+        color: #2d3748;
+        letter-spacing: 0.02em;
+    }
+    .semester-controls-row select {
+        padding: 0.45rem 1.2rem 0.45rem 0.8rem;
+        border-radius: 6px;
+        border: 1.5px solid #b0b4ba;
+        font-size: 1.08rem;
+        background: #f7f8fa;
+        color: #222;
+        margin-right: 0.7rem;
+        min-width: 120px;
+        box-shadow: 0 1px 3px rgba(44,62,80,0.04);
+        transition: border 0.18s, box-shadow 0.18s;
+    }
+    .semester-controls-row select:focus {
+        border: 1.5px solid #888;
+        outline: none;
+        box-shadow: 0 0 0 2px #b0b4ba33;
+    }
+    @media (max-width: 900px) {
+        .semester-controls-row {
+            max-width: 100%;
+        }
+    }
+    @media (max-width: 700px) {
+        .semester-controls-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+        }
+        .semester-controls-row form {
+            width: 100%;
+        }
+        .semester-controls-row select,
+        .semester-controls-row button,
+        .semester-controls-row a.elegant-btn {
+            width: 100%;
+            margin: 0;
+        }
+    }
+
+    
+    
+    @media (max-width: 700px) {
+        .page-content {
+            padding: 1rem 0.2rem;
+        }
+        .table-container {
+            padding: 0.5rem;
+        }
+        #studentTable th, #studentTable td {
+            padding: 0.5rem 0.3rem;
+            font-size: 0.97rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-    <h2> Department of {{ department }} (Students)</h2>
+    <h2>Department of {{ department }} (Students) || Semester : {{ selected_semester }}</h2>
 
-    <div class="mb-3">
+    <div class="semester-controls-row">
         {% if is_hod %}
-            <a href="{% url 'add_student' %}" class="btn btn-primary">Add Student</a>
-            <a href="{% url 'department_report' department.id %}" class="btn btn-secondary">Department Summary</a>
+        <form method="post" action="{% url 'semester_up' %}">
+            {% csrf_token %}
+            <input type="hidden" name="semester" value="{{ selected_semester }}">
+            <button type="submit" class="elegant-btn"
+                onclick="return confirm('Are you sure you want to move all students in semester {{ selected_semester }} up by one?')">
+                <span style="font-size:1.1em;line-height:1;">&#8679;</span> Semester Up
+            </button>
+        </form>
+        <a href="{% url 'add_student' %}" class="elegant-btn">Add Student</a>
+        <a href="{% url 'department_report' department.id %}" class="elegant-btn elegant-btn-secondary">Department Summary</a>
         {% endif %}
     </div>
 
-    <table id="studentTable" border="1">
-        <thead>
-            <tr>
-                <th>Serial No.</th>  <!-- No sorting -->
-                <th class="sortable" onclick="sortTable(1)">University Register Number <span></span> </th>
-                <th class="sortable" onclick="sortTable(2)">Roll No. <span></span> </th>
-                <th class="sortable" onclick="sortTable(3)">Name <span></span> </th>
-                <th class="sortable" onclick="sortTable(4)">Admission Number <span></span> </th>
-                <th class="sortable" onclick="sortTable(5)">Programme <span></span> </th>
-                {% if is_hod %}
-                    <th>Actions</th>
-                {% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for student in students %}
+    <div class="table-container">
+        <table id="studentTable">
+            <thead>
                 <tr>
-                    <td class="serial-number">{{ forloop.counter }}</td>  <!-- Serial Number -->
-                    <td>{{ student.university_register_number }}</td>
-                    <td>{{ student.roll_number }}</td>
-                    <td>{{ student.name }}</td>
-                    <td>{{ student.admission_number }}</td>
-                    <td>{{ student.programme.name }}</td>
+                    <th>Serial No.</th>
+                    <th class="sortable" onclick="sortTable(1)">University Register Number <span class="sort-arrow"></span></th>
+                    <th class="sortable" onclick="sortTable(2)">Roll No. <span class="sort-arrow"></span></th>
+                    <th class="sortable" onclick="sortTable(3)">Name <span class="sort-arrow"></span></th>
+                    <th class="sortable" onclick="sortTable(4)">Admission Number <span class="sort-arrow"></span></th>
+                    <th class="sortable" onclick="sortTable(5)">Programme <span class="sort-arrow"></span></th>
                     {% if is_hod %}
-                    <td>
-                        <a href="{% url 'edit_student' student.id %}" class="btn btn-warning btn-sm">Edit</a>
-                        <a href="{% url 'remove_student' student.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this student?')">Remove</a>
-                        <a href="{% url 'student_report' student.id %}" class="btn btn-success btn-sm">Report</a>
-                    </td>
+                        <th>Actions</th>
                     {% endif %}
                 </tr>
-            {% empty %}
-                <tr>
-                    <td {% if is_hod %}colspan="7"{% else %}colspan="6"{% endif %} class="text-center">No students found.</td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
+            </thead>
+            <tbody>
+                {% for student in students %}
+                    <tr>
+                        <td class="serial-number">{{ forloop.counter }}</td>
+                        <td>{{ student.university_register_number }}</td>
+                        <td>{{ student.roll_number }}</td>
+                        <td>{{ student.name }}</td>
+                        <td>{{ student.admission_number }}</td>
+                        <td>{{ student.programme.name }}</td>
+                        {% if is_hod %}
+                        <td>
+                            <a href="{% url 'edit_student' student.id %}" class="btn btn-warning btn-sm action-buttons">Edit</a>
+                            <a href="{% url 'remove_student' student.id %}" class="btn btn-danger btn-sm action-buttons" onclick="return confirm('Are you sure you want to remove this student?')">Remove</a>
+                            <a href="{% url 'student_report' student.id %}" class="btn btn-success btn-sm action-buttons">Report</a>
+                        </td>
+                        {% endif %}
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td {% if is_hod %}colspan="7"{% else %}colspan="6"{% endif %} class="text-center">No students found.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     <script>
         function sortTable(columnIndex) {
             let table = document.getElementById("studentTable");

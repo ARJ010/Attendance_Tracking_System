@@ -1,5 +1,5 @@
 from django import forms
-from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
+from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department,Batch
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
@@ -39,7 +39,7 @@ class TeacherForm(forms.ModelForm):
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        fields = ['name', 'university_register_number','roll_number', 'admission_number', 'programme']
+        fields = ['name', 'university_register_number','year_of_enrolment','roll_number', 'admission_number', 'programme', 'current_semester']
     
     def __init__(self, *args, **kwargs):
         # Get the currently logged-in teacher's department
@@ -56,7 +56,7 @@ class StudentForm(forms.ModelForm):
 class AdminStudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        fields = ['name', 'university_register_number','roll_number', 'admission_number', 'programme']
+        fields = ['name', 'university_register_number','year_of_enrolment','roll_number', 'admission_number', 'programme', 'current_semester']
     
 
     
@@ -96,6 +96,13 @@ class CourseForm(forms.ModelForm):
             self.fields['department'].queryset = Department.objects.filter(id=logged_in_teacher.department.id)
 
 
+class BatchForm(forms.ModelForm):
+    class Meta:
+        model = Batch
+        fields = ['part']
+        widgets = {
+            'part': forms.Select(),
+        }
 
 
 # Form for assigning a Student to a Course

@@ -1,11 +1,9 @@
 from django.core.management.base import BaseCommand
 from attendance.models import (
-    Course, Student, Teacher, Department,
-    StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,  # old models
-    Batch, StudentBatch, TeacherBatch, HourDateBatch, NewAbsentDetails  # new models
+    Course, Student, Teacher, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,
+    Batch, StudentBatch, TeacherBatch, HourDateBatch, NewAbsentDetails
 )
 from collections import defaultdict
-
 
 class Command(BaseCommand):
     help = "Migrate attendance data from course-based models to batch-based models"
@@ -21,10 +19,11 @@ class Command(BaseCommand):
         for sc in StudentCourse.objects.all():
             key = (sc.course_id, sc.year)
             if key not in course_year_to_batch:
+                # Assign part 'A' by default, or improve logic as needed
                 batch = Batch.objects.create(
                     course_id=sc.course_id,
                     academic_year=sc.year,
-                    part='A',  # You can improve this logic if needed
+                    part='A',
                     active=True
                 )
                 course_year_to_batch[key] = batch
@@ -56,9 +55,11 @@ class Command(BaseCommand):
             if not tb:
                 continue
             hdb = HourDateBatch.objects.create(
-                teacher_batch=tb,
+                batch=batch,
+                teacher=hdc.teacher,
                 date=hdc.date,
-                hour=hdc.hour
+                hour=hdc.hour,
+                year=hdc.year
             )
             hdc_to_hdb_map[hdc.id] = hdb
             print(f"Created HourDateBatch {hdb.id} from HourDateCourse {hdc.id}")

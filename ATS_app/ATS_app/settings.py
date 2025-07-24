@@ -66,6 +66,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'attendance.context_processors.is_hod',
+                'attendance.context_processors.semesters_with_students',
+                'attendance.context_processors.semesters_with_courses',
             ],
         },
     },

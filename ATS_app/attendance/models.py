@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from datetime import date
 
@@ -24,7 +25,6 @@ class Programme(models.Model):
         return f"{self.name} ({self.department.name})"
 
 
-# Student Table
 class Student(models.Model):
     name = models.CharField(max_length=255)
     year_of_enrolment = models.PositiveIntegerField(null=True)
@@ -32,6 +32,13 @@ class Student(models.Model):
     university_register_number = models.CharField(max_length=50, unique=True)
     admission_number = models.CharField(max_length=50, unique=True)
     programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name="students")
+    
+    current_semester = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(8)],
+        default=1,
+        help_text="Semester 1 to 8. Set to 0 after pass out."
+    )
+
 
     def __str__(self):
         return self.name
@@ -119,20 +126,21 @@ class HourDateBatch(models.Model):
         (4, 'Hour 4'),
         (5, 'Hour 5'),
     ]
-    teacher_batch = models.ForeignKey(TeacherBatch, on_delete=models.CASCADE, related_name="sessions")
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE,null=True)
+    teacher = models.ForeignKey("Teacher", on_delete=models.CASCADE,null=True)
     date = models.DateField()
     hour = models.PositiveSmallIntegerField(choices=HOUR_CHOICES)
     year = models.PositiveIntegerField(editable=False)
 
     class Meta:
-        unique_together = ('teacher_batch', 'date', 'hour')
+        unique_together = ('batch', 'date', 'hour')
 
     def save(self, *args, **kwargs):
         self.year = calculate_academic_year(self.date)
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.teacher_batch} - {self.date} Hour {self.hour}"
+        return f"{self.batch} - {self.date} Hour {self.hour}"
     
 class NewAbsentDetails(models.Model):
     hour_date_batch = models.ForeignKey(HourDateBatch, on_delete=models.CASCADE, related_name="attendance")
