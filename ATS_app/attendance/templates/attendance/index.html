@@ -143,7 +143,7 @@ Attendance Tracking System
         {% endif %}
     {% endif %}
     <a href="{% url 'teacher_list' %}">👨‍🏫 Teachers</a>
-    <a href="{% url 'teacher_attendance_list' %}">📊 Attendance Taken</a>
+    <a href="{% url 'teacher_attendance_list' sem=semesters.0%}">📊 Attendance Taken</a>
 </div>
 
 <div class="content-container">
