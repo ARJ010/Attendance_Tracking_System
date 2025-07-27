@@ -142,7 +142,7 @@ class HourDateBatch(models.Model):
     def __str__(self):
         return f"{self.batch} - {self.date} Hour {self.hour}"
     
-class NewAbsentDetails(models.Model):
+class AbsentDetails(models.Model):
     hour_date_batch = models.ForeignKey(HourDateBatch, on_delete=models.CASCADE, related_name="attendance")
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     status = models.BooleanField(default=False)
@@ -157,79 +157,6 @@ class NewAbsentDetails(models.Model):
 
 
 
-# Student-Course Table
-class StudentCourse(models.Model):
-    student = models.ForeignKey("Student", on_delete=models.CASCADE)
-    course = models.ForeignKey("Course", on_delete=models.CASCADE)
-    year = models.PositiveIntegerField(editable=False)  # Year is non-editable
-
-    class Meta:
-        unique_together = ('student', 'course', 'year')
-
-    def save(self, *args, **kwargs):
-        # Calculate and set the year dynamically
-        self.year = calculate_academic_year(date.today())
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.student.name} - {self.course.name} - {self.year}"
-
-
-# Teacher-Course Table
-class TeacherCourse(models.Model):
-    teacher = models.ForeignKey("Teacher", on_delete=models.CASCADE)
-    course = models.ForeignKey("Course", on_delete=models.CASCADE)
-    year = models.PositiveIntegerField(editable=False)  # Year is non-editable
-
-    class Meta:
-        unique_together = ('teacher', 'course', 'year')
-
-    def save(self, *args, **kwargs):
-        # Calculate and set the year dynamically
-        self.year = calculate_academic_year(date.today())
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.teacher.user.username} - {self.course.name} - {self.year}"
-
-
-class HourDateCourse(models.Model):
-    HOUR_CHOICES = [
-        (1, 'Hour 1'),
-        (2, 'Hour 2'),
-        (3, 'Hour 3'),
-        (4, 'Hour 4'),
-        (5, 'Hour 5'),
-    ]
-    course = models.ForeignKey("Course", on_delete=models.CASCADE)
-    teacher = models.ForeignKey("Teacher", on_delete=models.CASCADE)
-    date = models.DateField()
-    hour = models.PositiveSmallIntegerField(choices=HOUR_CHOICES)  # Restrict to valid choices
-    year = models.PositiveIntegerField(editable=False)  # Year is non-editable
-
-    class Meta:
-        unique_together = ('course', 'date', 'hour')  # Ensure only one teacher can mark attendance
-
-    def save(self, *args, **kwargs):
-        # Calculate the year based on the date field
-        self.year = calculate_academic_year(self.date)
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.teacher.user.first_name} {self.teacher.user.last_name} - {self.course.name} - {self.date} Hour {self.hour} - Year {self.year}"
 
 
 
-
-
-# Absent Details Table
-class AbsentDetails(models.Model):
-    hour_date_course = models.ForeignKey(HourDateCourse, on_delete=models.CASCADE)
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    status = models.BooleanField(default=False)  # False for absent, True for present
-
-    class Meta:
-        unique_together = ('student', 'hour_date_course')
-
-    def __str__(self):
-        return f"{self.student.name} - {self.hour_date_course} - {'Present' if self.status else 'Absent'}"

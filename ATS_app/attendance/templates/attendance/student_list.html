@@ -232,6 +232,40 @@
         outline: none;
         box-shadow: 0 0 0 2px #b0b4ba33;
     }
+
+    .semester-up-btn.enabled-btn {
+        background: #43a047 !important;   /* Green */
+        color: #fff !important;
+        border-color: #388e3c !important;
+    }
+    .semester-up-btn.enabled-btn:hover,
+    .semester-up-btn.enabled-btn:focus {
+        background: #388e3c !important;
+        border-color: #2e7031 !important;
+        color: #fff !important;
+    }
+    
+    .semester-up-btn.disabled-btn,
+    .semester-up-btn:disabled {
+        background: #e53935 !important;   /* Red */
+        color: #fff !important;
+        border-color: #b71c1c !important;
+        cursor: not-allowed !important;
+        pointer-events: none;
+        box-shadow: none;
+        opacity: 0.85;
+    }
+    .elegant-btn.blue-btn {
+        background: #1976d2 !important;   /* Blue */
+        color: #fff !important;
+        border-color: #1565c0 !important;
+    }
+    .elegant-btn.blue-btn:hover,
+    .elegant-btn.blue-btn:focus {
+        background: #1565c0 !important;
+        border-color: #0d47a1 !important;
+        color: #fff !important;
+    }
     @media (max-width: 900px) {
         .semester-controls-row {
             max-width: 100%;
@@ -279,13 +313,15 @@
         <form method="post" action="{% url 'semester_up' %}">
             {% csrf_token %}
             <input type="hidden" name="semester" value="{{ selected_semester }}">
-            <button type="submit" class="elegant-btn"
+            <button type="submit"
+                class="elegant-btn semester-up-btn{% if not students %} disabled-btn{% else %} enabled-btn{% endif %}"
+                {% if not students %}disabled{% endif %}
                 onclick="return confirm('Are you sure you want to move all students in semester {{ selected_semester }} up by one?')">
                 <span style="font-size:1.1em;line-height:1;">&#8679;</span> Semester Up
             </button>
         </form>
-        <a href="{% url 'add_student' %}" class="elegant-btn">Add Student</a>
-        <a href="{% url 'department_report' department.id %}" class="elegant-btn elegant-btn-secondary">Department Summary</a>
+        <a href="{% url 'add_student' %}" class="elegant-btn blue-btn">Add Student</a>
+        <a href="{% url 'department_report' department.id %}" class="elegant-btn blue-btn">Department Summary</a>
         {% endif %}
     </div>
 

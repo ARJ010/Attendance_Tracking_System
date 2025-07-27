@@ -12,8 +12,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
 from django.http import HttpResponse,Http404,JsonResponse, HttpResponseRedirect
-from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,NewAbsentDetails,Programme,Department, StudentBatch, Batch, TeacherBatch,HourDateBatch
+from .models import Student, Teacher, Course,AbsentDetails,Programme,Department, StudentBatch, Batch, TeacherBatch,HourDateBatch
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.paginator import Paginator
 from django.db import IntegrityError
 from django.contrib import messages
 from django.db import transaction
@@ -471,6 +472,7 @@ def delete_teacher(request, teacher_id):
 
     return redirect('teacher_list')
 
+
 @login_required
 def course_list(request, sem):
     teacher = Teacher.objects.get(user=request.user)
@@ -481,8 +483,12 @@ def course_list(request, sem):
     if user.groups.filter(name='HoD').exists():
         courses = Course.objects.filter(department=department, semester=sem)
     else:
-        teacher_courses = TeacherCourse.objects.filter(teacher=teacher)
-        courses = Course.objects.filter(id__in=teacher_courses.values('course'), semester=sem)
+        # Get batches where this teacher is assigned for this semester
+        teacher_batches = TeacherBatch.objects.filter(teacher=teacher, batch__course__semester=sem)
+        courses = Course.objects.filter(
+            id__in=teacher_batches.values_list('batch__course', flat=True),
+            semester=sem
+        ).distinct()
 
     teachers = Teacher.objects.filter(department=department)
 
@@ -491,7 +497,12 @@ def course_list(request, sem):
     if user.groups.filter(name='HoD').exists():
         course_students = {}
         for course in courses:
-            students = StudentCourse.objects.filter(course=course).values('student__name')
+            # Get all batches for this course and semester
+            batches = Batch.objects.filter(course=course, course__semester=sem)
+            # Get all students in these batches
+            students = Student.objects.filter(
+                id__in=StudentBatch.objects.filter(batch__in=batches).values_list('student', flat=True)
+            ).distinct()
             course_students[course] = students
 
     return render(request, 'attendance/course_list.html', {
@@ -599,11 +610,11 @@ def teacher_batch_assign(request, sem):
         active=True
     ).select_related('course')
 
-    # Map each batch to its assigned teachers via TeacherCourse
+    # Map each batch to its assigned teachers via TeacherBatch
     batch_teacher_map = {}
     for batch in batches:
-        assigned_teachers = TeacherCourse.objects.filter(course=batch.course)
-        batch_teacher_map[batch] = [tc.teacher.user.first_name for tc in assigned_teachers]
+        assigned_teachers = TeacherBatch.objects.filter(batch=batch)
+        batch_teacher_map[batch] = [tb.teacher.user.first_name for tb in assigned_teachers]
 
     # Get all teachers in the department for dropdown
     teachers = Teacher.objects.filter(department=department)
@@ -830,7 +841,7 @@ def take_attendance(request, batch_id):
 
             for student in students:
                 if f'students_{student.id}' in request.POST:
-                    NewAbsentDetails.objects.update_or_create(
+                    AbsentDetails.objects.update_or_create(
                         hour_date_batch=hour_date_batch,
                         student=student,
                         defaults={'status': False}
@@ -859,7 +870,7 @@ def teacher_attendance_list(request):
         return redirect('home')
 
     teacher = request.user.teacher  # Get the Teacher instance linked to the user
-    attendance_records = HourDateCourse.objects.filter(teacher=teacher).order_by('-date')
+    attendance_records = HourDateBatch.objects.filter(teacher=teacher).order_by('-date')
 
     context = {
         'attendance_records': attendance_records,
@@ -923,7 +934,7 @@ def edit_attendance(request, record_id):
         students.sort(key=lambda student: student.university_register_number)
 
     # Get existing absences for this attendance record
-    existing_absences = NewAbsentDetails.objects.filter(hour_date_batch=attendance_record)
+    existing_absences = AbsentDetails.objects.filter(hour_date_batch=attendance_record)
     absent_students = {absence.student.id for absence in existing_absences if not absence.status}
 
     if request.method == 'POST':
@@ -934,17 +945,17 @@ def edit_attendance(request, record_id):
             if key.startswith('students_')
         }
 
-        # Update or delete NewAbsentDetails as needed
+        # Update or delete AbsentDetails as needed
         for student in students:
             if student.id in selected_absent_ids:
-                NewAbsentDetails.objects.update_or_create(
+                AbsentDetails.objects.update_or_create(
                     hour_date_batch=attendance_record,
                     student=student,
                     defaults={'status': False}  # Mark as absent
                 )
             else:
                 # Mark as present (status=True) or delete absent record
-                NewAbsentDetails.objects.update_or_create(
+                AbsentDetails.objects.update_or_create(
                     hour_date_batch=attendance_record,
                     student=student,
                     defaults={'status': True}  # Mark as present
@@ -973,10 +984,7 @@ def remove_attendance(request, record_id):
 
 
 
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404
-from datetime import datetime
-from .models import Course, HourDateCourse, StudentCourse, AbsentDetails, Student
+
 
 @login_required
 def attendance_report(request, batch_id):
@@ -991,8 +999,8 @@ def attendance_report(request, batch_id):
     student_ids = StudentBatch.objects.filter(batch=batch).values_list('student_id', flat=True)
     students = Student.objects.filter(id__in=student_ids).order_by('university_register_number')
 
-    # All NewAbsentDetails related to this batch
-    attendance_records = NewAbsentDetails.objects.filter(hour_date_batch__in=hour_date_batches)
+    # All AbsentDetails related to this batch
+    attendance_records = AbsentDetails.objects.filter(hour_date_batch__in=hour_date_batches)
     attendance_lookup = {(record.student_id, record.hour_date_batch_id): record.status for record in attendance_records}
 
     attendance_data = []
@@ -1025,13 +1033,6 @@ def attendance_report(request, batch_id):
 
     return render(request, 'attendance/report.html', context)
 
-from collections import defaultdict
-from django.core.paginator import Paginator
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404
-from datetime import datetime
-
-from .models import Course, Student, StudentCourse, HourDateCourse, AbsentDetails
 
 def extract_admission_year(reg_no):
     year_suffix = reg_no[2:4]
@@ -1083,7 +1084,7 @@ def compact_attendance_report(request, batch_id):
             page_obj.object_list.append((None, None, None, False))
 
     # Fetch attendance records and build a quick lookup
-    attendance_lookup = NewAbsentDetails.objects.filter(hour_date_batch__in=hour_slots).values_list(
+    attendance_lookup = AbsentDetails.objects.filter(hour_date_batch__in=hour_slots).values_list(
         'student_id', 'hour_date_batch_id', 'status'
     )
     attendance_map = defaultdict(lambda: True)  # Default to present if no record
@@ -1132,30 +1133,32 @@ from collections import defaultdict
 def download_attendance_excel(request, course_id):
     course = get_object_or_404(Course, id=course_id)
 
-    # Fetch all students for the course
+    # Get all batches for this course (active only, or all as needed)
+    batches = Batch.objects.filter(course=course)
+    # Get all students in these batches (distinct in case of overlap)
     students = Student.objects.filter(
-        id__in=StudentCourse.objects.filter(course=course).values_list('student_id', flat=True)
-    ).order_by('university_register_number')
+        id__in=StudentBatch.objects.filter(batch__in=batches).values_list('student_id', flat=True)
+    ).order_by('university_register_number').distinct()
 
-    # Get all HourDateCourse entries for this course
-    hour_slots = HourDateCourse.objects.filter(course=course).order_by('date', 'hour')
+    # Get all HourDateBatch entries for these batches
+    hour_slots = HourDateBatch.objects.filter(batch__in=batches).order_by('date', 'hour')
 
-    # Preprocess HourDateCourse to detect date changes
+    # Preprocess HourDateBatch to detect date changes
     header_order = []
     last_date = None
-    for hdc in hour_slots:
-        date_str = hdc.date.strftime("%d-%m-%Y")
+    for hdb in hour_slots:
+        date_str = hdb.date.strftime("%d-%m-%Y")
         is_new_date = date_str != last_date
-        header_order.append((date_str, hdc.hour, hdc.id, is_new_date))  # Added is_new_date flag
+        header_order.append((date_str, hdb.hour, hdb.id, is_new_date))
         last_date = date_str
 
     # Fetch attendance records and build a quick lookup
-    attendance_lookup = AbsentDetails.objects.filter(hour_date_course__in=hour_slots).values_list(
-        'student_id', 'hour_date_course_id', 'status'
+    attendance_lookup = AbsentDetails.objects.filter(hour_date_batch__in=hour_slots).values_list(
+        'student_id', 'hour_date_batch_id', 'status'
     )
     attendance_map = defaultdict(lambda: True)  # Default to present if no record
-    for student_id, hdc_id, status in attendance_lookup:
-        attendance_map[(student_id, hdc_id)] = status
+    for student_id, hdb_id, status in attendance_lookup:
+        attendance_map[(student_id, hdb_id)] = status
 
     # Create an Excel Workbook
     wb = Workbook()
@@ -1174,8 +1177,8 @@ def download_attendance_excel(request, course_id):
             student.roll_number,
             student.name
         ]
-        for date_str, hour, hdc_id, _ in header_order:
-            status = attendance_map[(student.id, hdc_id)]
+        for date_str, hour, hdb_id, _ in header_order:
+            status = attendance_map[(student.id, hdb_id)]
             row.append("X" if status else "A")
         ws.append(row)
 
@@ -1192,9 +1195,10 @@ def download_attendance_excel(request, course_id):
 @login_required
 @user_passes_test(HoD_group_required)
 def student_individual_report(request, student_id):
-    student = Student.objects.get(id=student_id)
+    # 1. Get student or 404
+    student = get_object_or_404(Student, id=student_id)
 
-    # Get all semesters this student has attended
+    # 2. Get all semesters attended by the student
     semesters = (
         StudentBatch.objects
         .filter(student=student)
@@ -1202,71 +1206,79 @@ def student_individual_report(request, student_id):
         .distinct()
         .order_by('batch__course__semester')
     )
-    semesters = [str(s) for s in semesters]  # Ensure string for template comparison
+    semesters = [str(s) for s in semesters]
 
-    # Get selected semester from GET, default to current semester
+    # 3. Get selected semester from GET, default to current semester
     selected_semester = request.GET.get('semester', str(student.current_semester))
+    if selected_semester not in semesters:
+        selected_semester = semesters[-1] if semesters else str(student.current_semester)
 
-    # Only batches for the selected semester
-    student_batches = StudentBatch.objects.filter(
-        student=student,
-        batch__course__semester=selected_semester
-    ).select_related('batch__course')
+    # 4. Get all batches for the selected semester
+    student_batches = (
+        StudentBatch.objects
+        .filter(student=student, batch__course__semester=selected_semester)
+        .select_related('batch__course')
+    )
     batches = [sb.batch for sb in student_batches]
     batches.sort(key=lambda batch: (batch.course.code, batch.academic_year, batch.part))
 
+    # 5. Prepare attendance data
     attendance_data = []
-    total_hours = 0
-    total_present = 0
-    total_absent = 0
-    total_attended_hours = 0
+    total_hours = total_present = total_absent = 0
 
     for batch in batches:
-        batch_data = {
-            'batch': batch,
-            'course': batch.course,
-            'attendance_per_day': [],
-            'total_hours': 0,
-            'total_present': 0,
-            'total_absent': 0,
-            'attendance_percentage': 0,
-        }
+        batch_sessions = (
+            HourDateBatch.objects
+            .filter(batch=batch)
+            .order_by('date', 'hour')
+        )
+        batch_total_hours = batch_total_present = batch_total_absent = 0
+        attendance_per_day = []
 
-        sessions = HourDateBatch.objects.filter(batch=batch).order_by('date', 'hour')
-
-        for session in sessions:
-            attendance_record = NewAbsentDetails.objects.filter(student=student, hour_date_batch=session).first()
+        for session in batch_sessions:
+            attendance_record = AbsentDetails.objects.filter(
+                student=student, hour_date_batch=session
+            ).first()
             if attendance_record:
                 status = 'Present' if attendance_record.status else 'Absent'
-                if attendance_record.status:
-                    batch_data['total_present'] += 1
-                    total_attended_hours += 1
-                else:
-                    batch_data['total_absent'] += 1
             else:
+                # If no record, assume present (as per your logic)
                 status = 'Present'
-                batch_data['total_present'] += 1
-                total_attended_hours += 1
 
-            batch_data['attendance_per_day'].append({
+            if status == 'Present':
+                batch_total_present += 1
+            else:
+                batch_total_absent += 1
+
+            attendance_per_day.append({
                 'date': session.date,
                 'hour': session.hour,
                 'status': status,
             })
-            batch_data['total_hours'] += 1
+            batch_total_hours += 1
 
-        if batch_data['total_hours'] > 0:
-            batch_data['attendance_percentage'] = round((batch_data['total_present'] / batch_data['total_hours']) * 100, 2)
+        attendance_percentage = (
+            round((batch_total_present / batch_total_hours) * 100, 2)
+            if batch_total_hours > 0 else 0
+        )
 
-        attendance_data.append(batch_data)
-        total_hours += batch_data['total_hours']
-        total_present += batch_data['total_present']
-        total_absent += batch_data['total_absent']
+        attendance_data.append({
+            'batch': batch,
+            'course': batch.course,
+            'attendance_per_day': attendance_per_day,
+            'total_hours': batch_total_hours,
+            'total_present': batch_total_present,
+            'total_absent': batch_total_absent,
+            'attendance_percentage': attendance_percentage,
+        })
 
-    if total_hours > 0:
-        overall_attendance_percentage = (total_attended_hours / total_hours) * 100
-    else:
-        overall_attendance_percentage = 0
+        total_hours += batch_total_hours
+        total_present += batch_total_present
+        total_absent += batch_total_absent
+
+    overall_attendance_percentage = (
+        round((total_present / total_hours) * 100, 2) if total_hours > 0 else 0
+    )
 
     context = {
         'student': student,
@@ -1274,11 +1286,10 @@ def student_individual_report(request, student_id):
         'total_hours': total_hours,
         'total_present': total_present,
         'total_absent': total_absent,
-        'overall_attendance_percentage': round(overall_attendance_percentage, 2),
+        'overall_attendance_percentage': overall_attendance_percentage,
         'semesters_history': semesters,
         'selected_semester': selected_semester,
     }
-
     return render(request, 'attendance/student_report.html', context)
 
 
@@ -1287,13 +1298,15 @@ def student_individual_report(request, student_id):
 @user_passes_test(HoD_group_required)
 def department_report(request, department_id):
     # Fetch the department
-    department = Department.objects.get(id=department_id)
+    department = get_object_or_404(Department, id=department_id)
     
     # Get all students in the department, ordered by their university register number
     students = Student.objects.filter(programme__department=department).order_by('university_register_number')
     
-    # Calculate total hours taken for the department (sum of all hours in all courses)
-    total_hours_taken = HourDateCourse.objects.filter(course__studentcourse__student__programme__department=department).count()
+    # Calculate total hours taken for the department (sum of all hours in all batches)
+    total_hours_taken = HourDateBatch.objects.filter(
+        batch__course__department=department
+    ).count()
 
     # Prepare the data for each student
     student_data = []
@@ -1301,37 +1314,33 @@ def department_report(request, department_id):
     # Iterate over each student in the department
     for student in students:
         total_present = 0
-        total_hours = 0  # Total hours the student could attend (across all their courses)
+        total_hours = 0
         total_absent = 0
-        total_attended_hours = 0  # Total hours the student was present across all courses
-        
-        # Fetch the courses assigned to this student
-        courses = student.studentcourse_set.values_list('course', flat=True)
+        total_attended_hours = 0
 
-        # Loop through the courses the student is enrolled in
-        for course_id in courses:
-            # Calculate the total number of hours for this course
-            course_hours = HourDateCourse.objects.filter(course_id=course_id).count()
-            total_hours += course_hours  # Accumulate the total hours for this student
-            
-            # Fetch all the sessions for this course
-            sessions = HourDateCourse.objects.filter(course_id=course_id).order_by('date')
-            
-            # Loop through each session and calculate present/absent status
-            for session in sessions:
-                # Check if there is an attendance record for this student for this session
-                attendance_record = AbsentDetails.objects.filter(student=student, hour_date_course=session).first()
-                
-                if attendance_record:
-                    if attendance_record.status:
-                        total_present += 1
-                        total_attended_hours += 1
-                    else:
-                        total_absent += 1
-                else:
-                    # If no record exists, assume the student is present
+        # Get all batches this student is in
+        batches = Batch.objects.filter(
+            id__in=StudentBatch.objects.filter(student=student).values_list('batch', flat=True)
+        )
+
+        # For all those batches, get all HourDateBatch sessions
+        sessions = HourDateBatch.objects.filter(batch__in=batches).order_by('date')
+
+        total_hours = sessions.count()
+
+        # For all those sessions, check attendance
+        for session in sessions:
+            attendance_record = AbsentDetails.objects.filter(student=student, hour_date_batch=session).first()
+            if attendance_record:
+                if attendance_record.status:
                     total_present += 1
                     total_attended_hours += 1
+                else:
+                    total_absent += 1
+            else:
+                # If no record exists, assume present
+                total_present += 1
+                total_attended_hours += 1
 
         # Calculate attendance percentage for this student
         attendance_percentage = (total_attended_hours / total_hours * 100) if total_hours > 0 else 0
@@ -1341,7 +1350,7 @@ def department_report(request, department_id):
             'student': student,
             'total_present': total_present,
             'attendance_percentage': round(attendance_percentage, 2),
-            'total_hours_taken': total_hours,  # Total hours across all courses
+            'total_hours_taken': total_hours,
         })
     
     # Prepare context for rendering
@@ -1349,7 +1358,7 @@ def department_report(request, department_id):
         'department': department,
         'students': student_data,
         'total_hours_taken': total_hours_taken,
-        'is_hod': request.user.groups.filter(name='HOD').exists()  # Check if the user is HOD
+        'is_hod': request.user.groups.filter(name='HoD').exists()
     }
 
     return render(request, 'attendance/department.html', context)
@@ -1367,21 +1376,30 @@ def programme_courses_view(request):
         total_students = students.count()
         total_courses_required = total_students * 6 if total_students else 0
 
-        # Get unique courses per student by course code
-        student_course_counts = StudentCourse.objects.filter(student__programme=programme) \
-            .values('student', 'course__code') \
-            .distinct() \
-            .values('student') \
-            .annotate(unique_courses=Count('course__code', distinct=True))
+        # Get all batches for this programme
+        batches = Batch.objects.filter(course__programme=programme)
+        # Get all students in these batches (should be same as students above)
+        student_ids = students.values_list('id', flat=True)
 
-        # Sum unique courses across all students
+        # For each student, count unique courses (by code) they are in via batches
+        student_course_counts = (
+            StudentBatch.objects
+            .filter(student__in=student_ids, batch__in=batches)
+            .values('student', 'batch__course__code')
+            .distinct()
+            .values('student')
+            .annotate(unique_courses=Count('batch__course__code', distinct=True))
+        )
+
         current_courses_count = sum(entry['unique_courses'] for entry in student_course_counts)
 
         # Get distinct courses (by picking only one per unique code)
-        unique_courses = Course.objects.filter(studentcourse__student__programme=programme) \
-            .values('code') \
-            .annotate(id=Min('id'))  # Pick one course per unique code
-
+        unique_courses = (
+            Course.objects
+            .filter(batches__in=batches)
+            .values('code')
+            .annotate(id=Min('id'))
+        )
         courses = Course.objects.filter(id__in=[entry['id'] for entry in unique_courses]).order_by('code')
 
         # Calculate the difference
@@ -1414,15 +1432,20 @@ def admin_department_view(request):
 
     if request.GET.get('department_id'):
         department_id = request.GET.get('department_id')
-        selected_department = Department.objects.get(id=department_id)
+        selected_department = get_object_or_404(Department, id=department_id)
         students = Student.objects.filter(programme__department=selected_department).order_by('university_register_number')
         teachers = Teacher.objects.filter(department=selected_department)
         courses = Course.objects.filter(department=selected_department)
         
-        # Get students assigned to each course
+        # Get students assigned to each course (via batches)
         course_students = {}
         for course in courses:
-            assigned_students = StudentCourse.objects.filter(course=course).values('student__name')
+            # Get all batches for this course
+            batches = Batch.objects.filter(course=course)
+            # Get all students in these batches (distinct)
+            assigned_students = Student.objects.filter(
+                id__in=StudentBatch.objects.filter(batch__in=batches).values_list('student', flat=True)
+            ).order_by('name').distinct()
             course_students[course] = assigned_students
     else:
         course_students = None

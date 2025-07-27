@@ -4,26 +4,40 @@
 
 {% block content %}
 <style>
-    .stdname { color: green; }
-    h1 { text-align: center; }
+    .stdname { color: #388e3c; font-weight: bold; }
+    h1, h2 { text-align: center; }
     .header { text-align: center; margin-bottom: 20px; }
     .footer { text-align: center; margin-top: 20px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; }
-    table, th, td { border: 1px solid black; padding: 8px; }
+    table, th, td { border: 1px solid #bbb; padding: 8px; }
     th { background-color: #f2f2f2; }
     .summary-table { margin-top: 20px; }
     .summary-table td { padding: 10px; text-align: left; }
-    @media print { .footer button { display: none; } }
+    .att-green { color: #388e3c; font-weight: bold; }
+    .att-yellow { color: #fbc02d; font-weight: bold; }
+    .att-red { color: #e53935; font-weight: bold; }
+    .progress-bar-bg {
+        background: #eee; border-radius: 8px; height: 18px; width: 100%; margin-top: 8px;
+    }
+    .progress-bar-fill {
+        height: 100%; border-radius: 8px;
+    }
+    @media print { .footer button, .semester-select { display: none; } }
 </style>
 
 <div class="header">
-    <h1>Attendance Report for <h3 class="stdname">{{ student.name }}</h3></h1>
-    <p>Roll No: {{ student.university_register_number }} | Admission No: {{ student.admission_number }}</p>
+    <h1>Attendance Report</h1>
+    <div>
+        <span class="stdname">{{ student.name }}</span> |
+        Reg No: {{ student.university_register_number }} |
+        Admission No: {{ student.admission_number }} |
+        Programme: {{ student.programme.name }} |
+        Current Semester: {{ student.current_semester }}
+    </div>
 </div>
 
-<!-- Semester filter (if you added it in your view/context) -->
 {% if semesters_history %}
-<form method="get" class="mb-3" style="text-align:center;">
+<form method="get" class="mb-3 semester-select" style="text-align:center;">
     <label for="semester-select"><strong>Semester:</strong></label>
     <select name="semester" id="semester-select" onchange="this.form.submit()">
         {% for sem in semesters_history %}
@@ -33,7 +47,6 @@
 </form>
 {% endif %}
 
-<!-- Loop through each batch -->
 {% for batch_data in attendance_data %}
 <h2>
     {{ batch_data.course.code }} - {{ batch_data.course.name }}
@@ -55,11 +68,13 @@
             <td>{{ forloop.counter }}</td>
             <td>{{ day.date }}</td>
             <td>{{ day.hour }}</td>
-            {% if day.status == 'Present' %}
-                <td><span style='font-size:25px; color: darkgreen;'>&#10004;</span></td>
-            {% else %}
-                <td><span style='font-size:25px;color: darkred;'>&#10006;</span></td>
-            {% endif %}
+            <td>
+                {% if day.status == 'Present' %}
+                    <span style='font-size:22px; color: #388e3c;' title="Present">&#10004;</span>
+                {% else %}
+                    <span style='font-size:22px; color: #e53935;' title="Absent">&#10006;</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
@@ -81,14 +96,26 @@
         </tr>
         <tr>
             <td>Attendance Percentage</td>
-            <td>{{ batch_data.attendance_percentage }}%</td>
+            <td>
+                <span class="
+                    {% if batch_data.attendance_percentage >= 85 %}
+                        att-green
+                    {% elif batch_data.attendance_percentage >= 75 %}
+                        att-yellow
+                    {% else %}
+                        att-red
+                    {% endif %}
+                ">
+                    {{ batch_data.attendance_percentage }}%
+                </span>
+            </td>
         </tr>
     </table>
 </div>
 {% endfor %}
 
 <div class="footer">
-    <p>Overall Attendance</p>
+    <h3>Overall Attendance</h3>
     <table class="summary-table">
         <tr>
             <td>Total Hours</td>
@@ -104,7 +131,32 @@
         </tr>
         <tr>
             <td>Overall Attendance Percentage</td>
-            <td>{{ overall_attendance_percentage }}%</td>
+            <td>
+                <span class="
+                    {% if overall_attendance_percentage >= 85 %}
+                        att-green
+                    {% elif overall_attendance_percentage >= 75 %}
+                        att-yellow
+                    {% else %}
+                        att-red
+                    {% endif %}
+                ">
+                    {{ overall_attendance_percentage }}%
+                </span>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"
+                        style="background:
+                            {% if overall_attendance_percentage >= 85 %}
+                                #43a047
+                            {% elif overall_attendance_percentage >= 75 %}
+                                #fbc02d
+                            {% else %}
+                                #e53935
+                            {% endif %};
+                            width:{{ overall_attendance_percentage }}%;">
+                    </div>
+                </div>
+            </td>
         </tr>
     </table>
 </div>

@@ -1,5 +1,5 @@
 from django import forms
-from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department,Batch
+from .models import Student, Teacher, Course,Programme,Department,Batch
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
@@ -105,18 +105,6 @@ class BatchForm(forms.ModelForm):
         }
 
 
-# Form for assigning a Student to a Course
-class StudentCourseForm(forms.Form):
-    student = forms.ModelChoiceField(
-        queryset=Student.objects.all(),
-        widget=forms.Select(attrs={'placeholder': 'Select student'}),
-        label="Select Student"
-    )
-    courses = forms.ModelMultipleChoiceField(
-        queryset=Course.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
-        label="Select Courses"
-    )
 
 class CourseSelectionForm(forms.Form):
     courses = forms.ModelMultipleChoiceField(
@@ -125,39 +113,6 @@ class CourseSelectionForm(forms.Form):
         label="Select Courses"
     )
 
-# Form for assigning a Teacher to a Course
-class TeacherCourseForm(forms.ModelForm):
-    class Meta:
-        model = TeacherCourse
-        fields = ['teacher', 'course']
-        widgets = {
-            'teacher': forms.Select(attrs={'placeholder': 'Select teacher'}),
-            'course': forms.Select(attrs={'placeholder': 'Select course'}),
-        }
-
-
-# Form for managing Hour-Date-Course details
-class HourDateCourseForm(forms.ModelForm):
-    class Meta:
-        model = HourDateCourse
-        fields = ['date', 'hour']
-        widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'hour': forms.TextInput(attrs={'placeholder': 'Enter hour (e.g., 1st Hour, 2nd Hour)'}),
-        }
-
-
-# Form for managing Absent Details
-class AbsentDetailsForm(forms.ModelForm):
-
-    class Meta:
-        model = AbsentDetails
-        fields = ['hour_date_course', 'student', 'status']
-        widgets = {
-            'hour_date_course': forms.Select(attrs={'placeholder': 'Select Hour-Date-Course'}),
-            'student': forms.Select(attrs={'placeholder': 'Select student'}),
-            'status': forms.Select(choices=[(False, 'Absent'), (True, 'Present')]),
-        }
 
 
 class CSVUploadForm(forms.Form):
