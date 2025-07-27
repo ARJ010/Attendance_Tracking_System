@@ -23,19 +23,25 @@
                 <ul class="navbar-nav me-auto">
                     <!-- Added Links to Each Form -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="assignDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle" href="#" id="studentDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             Student
                         </a>
-                        <ul class="dropdown-menu semester-dropdown" aria-labelledby="assignDropdown">
-                            {% for sem in semesters %}
+                        <ul class="dropdown-menu semester-dropdown" aria-labelledby="studentDropdown">
+                            {% if semesters %}
+                                {% for sem in semesters %}
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'student_list' sem=sem %}">
+                                            Semester {{ sem }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            {% else %}
                                 <li>
-                                    <a class="dropdown-item" href="{% url 'student_list' sem=sem %}">
-                                        Semester {{ sem }}
+                                    <a class="dropdown-item text-success fw-bold" href="{% url 'add_student' %}">
+                                        ➕ Add First Student
                                     </a>
                                 </li>
-                            {% empty %}
-                                <li class="dropdown-item text-muted">No Semester available</li>
-                            {% endfor %}
+                            {% endif %}
                         </ul>
                     </li>
                     <li class="nav-item">
