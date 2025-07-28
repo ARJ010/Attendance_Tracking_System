@@ -1376,10 +1376,12 @@ def programme_courses_view(request):
         total_students = students.count()
         total_courses_required = total_students * 6 if total_students else 0
 
-        # Get all batches for this programme
-        batches = Batch.objects.filter(course__programme=programme)
-        # Get all students in these batches (should be same as students above)
         student_ids = students.values_list('id', flat=True)
+
+        # Get all batches where at least one student is in this programme
+        batches = Batch.objects.filter(
+            id__in=StudentBatch.objects.filter(student__in=student_ids).values_list('batch', flat=True)
+        )
 
         # For each student, count unique courses (by code) they are in via batches
         student_course_counts = (
@@ -1415,7 +1417,6 @@ def programme_courses_view(request):
         })
 
     return render(request, 'attendance/programme_courses.html', {'programme_data': programme_data})
-
 
 @login_required
 @user_passes_test(is_superuser)
