@@ -103,6 +103,13 @@
         border-radius: 6px;
     }
 
+    /* Highlighted sort button */
+    .sort-selected {
+        background-color: #0d6efd !important;
+        color: white !important;
+        border-color: #0a58ca !important;
+    }
+
     /* Form Layout */
     .form-container {
         border: 1px solid #ddd;
@@ -223,70 +230,62 @@ document.addEventListener("DOMContentLoaded", function () {
     let sortRollButton = document.getElementById("sort-roll");
 
     if (sortRegButton) {
-        sortRegButton.addEventListener("click", sortTableByRegister);
-    } else {
-        console.error("Error: 'sort-reg' button not found!");
+        sortRegButton.addEventListener("click", function () {
+            sortTableByRegister();
+            sortRegButton.classList.add("sort-selected");
+            sortRollButton.classList.remove("sort-selected");
+        });
     }
 
     if (sortRollButton) {
-        sortRollButton.addEventListener("click", sortTableByGroupAndRoll);
-    } else {
-        console.error("Error: 'sort-roll' button not found!");
+        sortRollButton.addEventListener("click", function () {
+            sortTableByGroupAndRoll();
+            sortRollButton.classList.add("sort-selected");
+            sortRegButton.classList.remove("sort-selected");
+        });
     }
 
     function extractGroup(registerNumber) {
         let match = registerNumber.match(/^NA\d{2}([A-Z]+)\d+$/);
-        return match ? match[1] : "ZZZ"; // "ZZZ" ensures ungrouped students appear last
+        return match ? match[1] : "ZZZ";
     }
 
     function sortTableByRegister() {
         let table = document.getElementById("student-table");
         let rows = Array.from(table.getElementsByTagName("tr"));
-
         rows.sort((a, b) => {
             let regA = a.getAttribute("data-reg") || "";
             let regB = b.getAttribute("data-reg") || "";
             return regA.localeCompare(regB);
         });
-
         updateTable(rows, table);
     }
 
     function sortTableByGroupAndRoll() {
         let table = document.getElementById("student-table");
         let rows = Array.from(table.getElementsByTagName("tr"));
-
         let students = rows.map(row => {
             let reg = row.getAttribute("data-reg") || "";
             let rollStr = row.getAttribute("data-roll") || "None";
             let roll = rollStr === "None" || rollStr.trim() === "" ? Infinity : parseInt(rollStr, 10);
-            let group = reg.match(/NA\d{2}([A-Z]+)/)?.[1] || ""; // Extract group name
-
+            let group = reg.match(/NA\d{2}([A-Z]+)/)?.[1] || "";
             return { row, reg, roll, group };
         });
-
         students.sort((a, b) => {
-            if (a.group !== b.group) {
-                return a.group.localeCompare(b.group); // Sort by group name
-            }
-            if (a.roll !== b.roll) {
-                return a.roll - b.roll; // Sort by roll number if available
-            }
-            return a.reg.localeCompare(b.reg); // Sort by register number
+            if (a.group !== b.group) return a.group.localeCompare(b.group);
+            if (a.roll !== b.roll) return a.roll - b.roll;
+            return a.reg.localeCompare(b.reg);
         });
-
-        let sortedRows = students.map(student => student.row);
-        updateTable(sortedRows, table);
+        updateTable(students.map(s => s.row), table);
     }
 
     function updateTable(sortedRows, table) {
         let index = 1;
         sortedRows.forEach(row => {
-            row.cells[0].textContent = index++; // Update serial number
+            row.cells[0].textContent = index++;
             table.appendChild(row);
         });
     }
 });
-
 </script>
 {% endblock %}
