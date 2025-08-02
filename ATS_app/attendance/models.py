@@ -155,6 +155,17 @@ class AbsentDetails(models.Model):
 
     
 
+class TC(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="tcs")
+    reason = models.TextField()
+    current_semester = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(8)],
+        help_text="The semester in which the student applied for TC."
+    )
+    year_of_tc = models.PositiveIntegerField(default=date.today().year)
+
+    def __str__(self):
+        return f"TC - {self.student.name} - {self.year_of_tc}"
 
 
 

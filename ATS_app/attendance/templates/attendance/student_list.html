@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 
 {% block title %}Student List{% endblock %}
+{% load custom_filters %}
+
 
 {% block extra_head %}
 <style>
@@ -266,6 +268,43 @@
         border-color: #0d47a1 !important;
         color: #fff !important;
     }
+
+    .modal-content {
+        border-radius: 1.5rem;
+        font-family: 'Segoe UI', sans-serif;
+      }
+      
+      .modal-header, .modal-footer {
+        border: none;
+      }
+      
+      .modal-title {
+        font-weight: 600;
+        font-size: 1.25rem;
+      }
+      
+      .modal-content {
+        font-family: 'Times New Roman', serif;
+        border: 2px solid #000;
+        border-radius: 1rem;
+      }
+      
+      hr {
+        border-width: 2px;
+      }
+      
+      .modal-footer {
+        border-top: none;
+      }
+      
+      
+      input, select, textarea {
+        border-radius: 0.5rem !important;
+        padding: 0.6rem !important;
+        border: 1px solid #ced4da;
+      }
+      
+      
     @media (max-width: 900px) {
         .semester-controls-row {
             max-width: 100%;
@@ -306,24 +345,36 @@
 {% endblock %}
 
 {% block content %}
-    <h2>Department of {{ department }} (Students) || Semester : {{ selected_semester }}</h2>
+<h2>
+    Department of {{ department }} (Students) || 
+    Semester: 
+    {% if selected_semester == 0 %}
+      <span class="text-danger">Transferred / Inactive</span>
+    {% else %}
+      {{ selected_semester }}
+    {% endif %}
+  </h2>
+  
 
     <div class="semester-controls-row">
         {% if is_hod %}
-        <form method="post" action="{% url 'semester_up' %}">
-            {% csrf_token %}
-            <input type="hidden" name="semester" value="{{ selected_semester }}">
-            <button type="submit"
+          {% if selected_semester != 0 %}
+            <form method="post" action="{% url 'semester_up' %}">
+              {% csrf_token %}
+              <input type="hidden" name="semester" value="{{ selected_semester }}">
+              <button type="submit"
                 class="elegant-btn semester-up-btn{% if not students %} disabled-btn{% else %} enabled-btn{% endif %}"
                 {% if not students %}disabled{% endif %}
                 onclick="return confirm('Are you sure you want to move all students in semester {{ selected_semester }} up by one?')">
                 <span style="font-size:1.1em;line-height:1;">&#8679;</span> Semester Up
-            </button>
-        </form>
-        <a href="{% url 'add_student' %}" class="elegant-btn blue-btn">Add Student</a>
-        <a href="{% url 'department_report' department.id %}" class="elegant-btn blue-btn">Department Summary</a>
+              </button>
+            </form>
+            <a href="{% url 'add_student' %}" class="elegant-btn blue-btn">Add Student</a>
+            <a href="{% url 'department_report' department.id %}" class="elegant-btn blue-btn">Department Summary</a>
+          {% endif %}
         {% endif %}
-    </div>
+      </div>
+      
 
     <div class="table-container">
         <table id="studentTable">
@@ -351,9 +402,70 @@
                         <td>{{ student.programme.name }}</td>
                         {% if is_hod %}
                         <td>
-                            <a href="{% url 'edit_student' student.id %}" class="btn btn-warning btn-sm action-buttons">Edit</a>
-                            <a href="{% url 'remove_student' student.id %}" class="btn btn-danger btn-sm action-buttons" onclick="return confirm('Are you sure you want to remove this student?')">Remove</a>
-                            <a href="{% url 'student_report' student.id %}" class="btn btn-success btn-sm action-buttons">Report</a>
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <a href="{% url 'edit_student' student.id %}" class="btn btn-outline-warning btn-sm">
+                                  Edit
+                                </a>
+                              
+                                <a href="{% url 'remove_student' student.id %}" class="btn btn-outline-danger btn-sm"
+                                   onclick="return confirm('Are you sure you want to remove this student?')">
+                                  Remove
+                                </a>
+                              
+                                <a href="{% url 'student_report' student.id %}" class="btn btn-outline-success btn-sm">
+                                  Report
+                                </a>
+                              
+                                {% if student.current_semester == 0 %}
+                                  <button class="btn btn-outline-info btn-sm" onclick="showTcDetails({{ student.id }})">
+                                    View TC
+                                  </button>
+                                {% else %}
+                                  <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#tcModal{{ student.id }}">
+                                    Generate TC
+                                  </button>
+                                {% endif %}
+                              </div>
+                              
+
+                           <!-- TC Modal for this student -->
+<!-- TC Modal for this student -->
+<div class="modal fade" id="tcModal{{ student.id }}" tabindex="-1" aria-labelledby="tcModalLabel{{ student.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content p-4 border border-dark rounded-4 shadow">
+        <form method="post" action="{% url 'create_tc' student.id %}">
+          {% csrf_token %}
+          <div class="modal-body text-center">
+  
+            <h2 class="fw-bold mb-2" style="font-family: 'Georgia', serif;">
+              Nehru Arts and Science College, Kanhangad
+            </h2>
+            <h4 class="text-uppercase mb-4" style="font-family: 'Georgia', serif;">Transfer Certificate Application</h4>
+            <hr class="border-dark mb-4">
+  
+            <div class="text-start px-4" style="font-family: 'Times New Roman', Times, serif; font-size: 1.1rem; line-height: 2;">
+              <p><strong>Student Name:</strong> {{ student.name }}</p>
+  
+              <!-- Render form fields here (e.g., reason, semester, year) -->
+              {{ tc_forms|dict_get:student.id }}
+            </div>
+  
+            <div class="text-start mt-4 px-4" style="font-family: 'Georgia', serif;">
+              <p class="mb-0">Date of Application: <span id="tc-date-{{ student.id }}"></span></p>
+            </div>
+          </div>
+  
+          <div class="modal-footer justify-content-between px-4">
+            <button type="submit" class="btn btn-success px-4">Submit</button>
+            <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  
+  
                         </td>
                         {% endif %}
                     </tr>
@@ -365,6 +477,42 @@
             </tbody>
         </table>
     </div>
+
+    <!-- TC Modal -->
+    <div class="modal fade" id="tcModal" tabindex="-1" aria-labelledby="tcModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+          <div class="modal-content p-4 border border-dark rounded-4 shadow">
+            <div class="modal-body text-center">
+      
+              <h2 class="fw-bold mb-2" style="font-family: 'Georgia', serif;">
+                Nehru Arts and Science College, Kanhangad
+              </h2>
+              <h4 class="text-uppercase mb-4" style="font-family: 'Georgia', serif;">Transfer Certificate</h4>
+              <hr class="border-dark mb-4">
+      
+              <div class="text-start px-4" style="font-family: 'Times New Roman', Times, serif; font-size: 1.1rem; line-height: 2;">
+                <p>This is to certify that <strong><span id="tc-student">[Student Name]</span></strong> has been a student of this institution.</p>
+      
+                <p>He/She has applied for a Transfer Certificate for the following reason: <strong><span id="tc-reason">[Reason]</span></strong>.</p>
+      
+                <p>The student was studying in <strong>Semester <span id="tc-semester">[Semester]</span></strong> at the time of application.</p>
+      
+                <p>The Transfer Certificate was issued in the year <strong><span id="tc-year">[Year]</span></strong>.</p>
+              </div>
+      
+              <div class="text-start mt-5 px-4" style="font-family: 'Georgia', serif;">
+                <p class="mb-0">Date of Issue: <span id="tc-date"></span></p>
+              </div>
+      
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      
+      
+  
+  
     <script>
         function sortTable(columnIndex) {
             let table = document.getElementById("studentTable");
@@ -403,5 +551,41 @@
                 cell.innerText = index + 1;
             });
         }
+
+            document.addEventListener("DOMContentLoaded", function () {
+              const dateSpans = document.querySelectorAll("[id^='tc-date-']");
+              const today = new Date().toLocaleDateString('en-IN', {
+                day: '2-digit', month: 'long', year: 'numeric'
+              });
+              dateSpans.forEach(span => span.textContent = today);
+            });
+          
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric'
+            });
+            document.getElementById("tc-date").textContent = formattedDate;
+          });
+
+        function showTcDetails(studentId) {
+            fetch(`/tc-details/${studentId}/`)
+              .then(response => response.json())
+              .then(data => {
+                if (data.status === 'success') {
+                  document.getElementById('tc-student').textContent = data.data.student;
+                  document.getElementById('tc-reason').textContent = data.data.reason;
+                  document.getElementById('tc-semester').textContent = data.data.current_semester;
+                  document.getElementById('tc-year').textContent = data.data.year_of_tc;
+                  new bootstrap.Modal(document.getElementById('tcModal')).show();
+                } else {
+                  alert(data.message);
+                }
+              });
+          }
+          
     </script>
 {% endblock %}

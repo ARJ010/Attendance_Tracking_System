@@ -25,7 +25,7 @@ def semesters_with_students(request):
             .order_by('current_semester')
         )
         semesters = [entry['current_semester'] for entry in active_semesters if entry['count'] > 0]
-    return {'semesters': semesters}
+    return {'active_semesters': semesters}
 
 def semesters_with_courses(request):
     # Default: empty list

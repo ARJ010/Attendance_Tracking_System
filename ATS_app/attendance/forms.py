@@ -1,5 +1,5 @@
 from django import forms
-from .models import Student, Teacher, Course,Programme,Department,Batch
+from .models import Student, Teacher, Course,Programme,Department,Batch,TC
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
@@ -34,6 +34,14 @@ class TeacherForm(forms.ModelForm):
             self.fields['department'].queryset = Department.objects.filter(id=logged_in_teacher.department.id)
 
 
+class TCForm(forms.ModelForm):
+    class Meta:
+        model = TC
+        fields = ['reason', 'current_semester']
+        widgets = {
+            'reason': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Enter reason'}),
+            'current_semester': forms.NumberInput(attrs={'min': 1, 'max': 8}),
+        }
 
 # Form for creating/updating a Student
 class StudentForm(forms.ModelForm):

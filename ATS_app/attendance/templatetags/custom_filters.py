@@ -8,6 +8,11 @@ register = template.Library()
 def get_item(dictionary, key):
     return dictionary.get(key, [])
 
+
+@register.filter
+def dict_get(d, key):
+    return d.get(key)
+
 @register.filter
 def filter_by_semester(student_batches, semester):
     return [sb for sb in student_batches if str(sb.batch.course.semester) == str(semester)]

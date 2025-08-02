@@ -27,14 +27,19 @@
                             Student
                         </a>
                         <ul class="dropdown-menu semester-dropdown" aria-labelledby="studentDropdown">
-                            {% if semesters %}
-                                {% for sem in semesters %}
+                            {% if active_semesters %}
+                                {% for sem in active_semesters %}
                                     <li>
                                         <a class="dropdown-item" href="{% url 'student_list' sem=sem %}">
                                             Semester {{ sem }}
                                         </a>
                                     </li>
                                 {% endfor %}
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'student_list' sem=0 %}">
+                                        Alumni / TC
+                                    </a>
+                                </li>
                             {% else %}
                                 <li>
                                     <a class="dropdown-item text-success fw-bold" href="{% url 'add_student' %}">
@@ -75,8 +80,8 @@
                             Assign Student
                         </a>
                         <ul class="dropdown-menu semester-dropdown" aria-labelledby="assignDropdown">
-                            {% if semesters %}
-                                {% for sem in semesters %}
+                            {% if active_semesters %}
+                                {% for sem in active_semesters %}
                                     <li>
                                         <a class="dropdown-item" href="{% url 'student_batch_assign' sem=sem %}">
                                             Semester {{ sem }}

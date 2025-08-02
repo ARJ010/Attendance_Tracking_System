@@ -12,7 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
 from django.http import HttpResponse,Http404,JsonResponse, HttpResponseRedirect
-from .models import Student, Teacher, Course,AbsentDetails,Programme,Department, StudentBatch, Batch, TeacherBatch,HourDateBatch
+from .models import Student, Teacher, Course,AbsentDetails,Programme,Department, StudentBatch, Batch, TeacherBatch,HourDateBatch,TC
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 from django.db import IntegrityError
@@ -20,7 +20,7 @@ from django.contrib import messages
 from django.db import transaction
 from .forms import (
     StudentForm, TeacherForm, CourseForm, 
-    UserEditForm,UserForm,CSVUploadForm,BatchForm
+    UserEditForm,UserForm,CSVUploadForm,BatchForm,TCForm
 )
 
 def calculate_year(current_date):
@@ -66,8 +66,12 @@ def student_list(request, sem):
         current_semester=selected_semester
     ).order_by('university_register_number')
 
+    tc_forms = {student.id: TCForm() for student in students}
+    
+
     return render(request, 'attendance/student_list.html', {
         'students': students,
+        'tc_forms': tc_forms,
         'department': department,
         'semesters': semesters,
         'selected_semester': selected_semester,
@@ -1459,3 +1463,42 @@ def admin_department_view(request):
         'courses': courses,
         'course_students': course_students,
     })
+
+@login_required
+@user_passes_test(HoD_group_required)
+def create_tc(request, student_id):
+    student = get_object_or_404(Student, id=student_id)
+
+    if request.method == 'POST':
+        form = TCForm(request.POST)
+        if form.is_valid():
+            tc = form.save(commit=False)
+            tc.student = student
+            tc.year_of_tc = date.today().year
+            tc.save()
+
+            # Set student semester to 0 after issuing TC
+            student.current_semester = 0
+            student.save()
+
+            return redirect('student_detail', student_id=student.id)  # or any desired view
+    else:
+        form = TCForm()
+
+    return render(request, 'tc_form.html', {'form': form, 'student': student})
+
+
+@login_required
+@user_passes_test(HoD_group_required)
+def get_tc_details(request, student_id):
+    try:
+        tc = TC.objects.filter(student_id=student_id).latest('year_of_tc')
+        data = {
+            'student': tc.student.name,
+            'reason': tc.reason,
+            'current_semester': tc.current_semester,
+            'year_of_tc': tc.year_of_tc,
+        }
+        return JsonResponse({'status': 'success', 'data': data})
+    except TC.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'No TC found for this student.'})

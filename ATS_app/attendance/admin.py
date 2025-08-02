@@ -83,3 +83,16 @@ class AbsentDetailsAdmin(admin.ModelAdmin):
     list_display = ('student', 'hour_date_batch', 'status')
     search_fields = ('student__name', 'hour_date_batch__teacher_batch__teacher__name')
     list_filter = ('status',)
+
+from .models import TC
+
+@admin.register(TC)
+class TCAdmin(admin.ModelAdmin):
+    list_display = ('student', 'current_semester', 'year_of_tc', 'reason_short')
+    search_fields = ('student__name', 'student__university_register_number', 'reason')
+    list_filter = ('year_of_tc', 'current_semester')
+
+    def reason_short(self, obj):
+        return (obj.reason[:50] + '...') if len(obj.reason) > 50 else obj.reason
+
+    reason_short.short_description = 'Reason'

@@ -12,6 +12,9 @@ urlpatterns = [
     path('students/upload/', views.upload_students, name='upload_students'),
     path('edit_student/<int:id>/', views.edit_student, name='edit_student'),
     path('remove_student/<int:id>/', views.remove_student, name='remove_student'),
+    path('student/<int:student_id>/create-tc/', views.create_tc, name='create_tc'),
+    path('tc-details/<int:student_id>/', views.get_tc_details, name='get_tc_details'),
+
     path('teachers/', views.teacher_list, name='teacher_list'),
     path('teachers/add/', views.register_teacher, name='register_teacher'),
     path('teachers/upload', views.upload_teachers, name='upload_teachers'),
