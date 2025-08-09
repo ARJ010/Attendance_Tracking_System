@@ -28,8 +28,8 @@ class Programme(models.Model):
 class Student(models.Model):
     name = models.CharField(max_length=255)
     year_of_enrolment = models.PositiveIntegerField(null=True)
-    roll_number = models.CharField(max_length=50, null=True)
-    university_register_number = models.CharField(max_length=50, unique=True)
+    roll_number = models.CharField(max_length=50, null=True,  blank=True)
+    university_register_number = models.CharField(max_length=50, unique=True, null=True, blank=True)
     admission_number = models.CharField(max_length=50, unique=True)
     programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name="students")
     

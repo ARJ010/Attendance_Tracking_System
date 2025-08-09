@@ -810,10 +810,11 @@ def take_attendance(request, batch_id):
 
     # Sorting
     sort_by = request.GET.get('sort_by', 'university_register_number')
+
     if sort_by == "roll_no":
-        students.sort(key=lambda student: student.roll_no if student.roll_no else "")
+        students.sort(key=lambda student: student.roll_number or "")  # fixed field name
     else:
-        students.sort(key=lambda student: student.university_register_number)
+        students.sort(key=lambda student: student.university_register_number or "")
 
     if request.method == 'POST':
         attendance_date_str = request.POST.get('date', '')
@@ -935,7 +936,7 @@ def edit_attendance(request, record_id):
     if sort_by == 'roll_number':
         students.sort(key=lambda student: student.roll_number or "")
     else:
-        students.sort(key=lambda student: student.university_register_number)
+        students.sort(key=lambda student: student.university_register_number or "")
 
     # Get existing absences for this attendance record
     existing_absences = AbsentDetails.objects.filter(hour_date_batch=attendance_record)
