@@ -1066,13 +1066,22 @@ def compact_attendance_report(request, batch_id):
     # Get all HourDateBatch entries for this batch
     hour_slots = HourDateBatch.objects.filter(batch=batch).order_by('date', 'hour')
 
-    # Preprocess HourDateBatch to detect date changes
+    # Build dictionary of all teachers for entire batch (all sessions)
+    all_teachers = {}
+    for hdb in hour_slots:
+        if hdb.teacher:
+            acronym = hdb.teacher.acronym
+            fullname = hdb.teacher.user.get_full_name() or hdb.teacher.user.username
+            all_teachers[acronym] = fullname
+
+    # Preprocess HourDateBatch to detect date changes & include teacher acronym for header
     header_order = []
     last_date = None
     for hdb in hour_slots:
         date_str = hdb.date.strftime("%d-%m-%Y")
         is_new_date = date_str != last_date
-        header_order.append((date_str, hdb.hour, hdb.id, is_new_date))
+        teacher_acronym = hdb.teacher.acronym if hdb.teacher else ""
+        header_order.append((date_str, hdb.hour, hdb.id, is_new_date, teacher_acronym))
         last_date = date_str
 
     # Paginate header_order (6 columns per page)
@@ -1080,23 +1089,27 @@ def compact_attendance_report(request, batch_id):
     page_number = request.GET.get("page", 1)
     page_obj = paginator.get_page(page_number)
 
-    # Pad to 6 columns if this is the last page and has fewer items
+    # Pad columns BEFORE passing to template to always show 6 columns
     required_columns = 6
     current_columns = len(page_obj.object_list)
+    visible_columns = list(page_obj.object_list)  # Make a copy
     if current_columns < required_columns:
-        pad_count = required_columns - current_columns
-        for _ in range(pad_count):
-            page_obj.object_list.append((None, None, None, False))
+        visible_columns += [(None, None, None, False, "")] * (required_columns - current_columns)
 
-    # Fetch attendance records and build a quick lookup
-    attendance_lookup = AbsentDetails.objects.filter(hour_date_batch__in=hour_slots).values_list(
-        'student_id', 'hour_date_batch_id', 'status'
-    )
-    attendance_map = defaultdict(lambda: True)  # Default to present if no record
+    # Fetch only attendance for visible columns
+    visible_hdb_ids = [hdb_id for _, _, hdb_id, _, _ in visible_columns if hdb_id]
+    attendance_lookup = AbsentDetails.objects.filter(
+        hour_date_batch_id__in=visible_hdb_ids
+    ).values_list('student_id', 'hour_date_batch_id', 'status')
+
+    # Build attendance map: True means Present, False means Absent
+    attendance_map = defaultdict(lambda: "X")  # Default to Present ("X")
     for student_id, hdb_id, status in attendance_lookup:
-        attendance_map[(student_id, hdb_id)] = status
+        # Assuming status = True means Present, False means Absent
+        attendance_map[(student_id, hdb_id)] = "X" if status else "A"
 
-    # Build student-wise attendance data for only the visible columns
+
+    # Build report data rows
     report_data = []
     for idx, student in enumerate(students, 1):
         row = {
@@ -1106,28 +1119,33 @@ def compact_attendance_report(request, batch_id):
             "name": student.name,
             "attendance": []
         }
-        for date_str, hour, hdb_id, is_new_date in page_obj.object_list:
+        for date_str, hour, hdb_id, is_new_date, _ in visible_columns:
             if hdb_id is not None:
-                status = attendance_map[(student.id, hdb_id)]
-                mark = "X" if status else "A"
+                mark = attendance_map[(student.id, hdb_id)]
             else:
-                mark = ""  # Empty cell for padded columns
+                mark = ""
             row["attendance"].append((mark, is_new_date))
-
         report_data.append(row)
+
+    # Prepare list of teachers info with full name and acronym for entire batch
+    teachers_info = [f"{fullname} ({acronym})" for acronym, fullname in all_teachers.items()]
 
     context = {
         "batch": batch,
         "course": course,
         "page_obj": page_obj,
+        "visible_columns": visible_columns,  # padded columns with teacher acronym
         "report_data": report_data,
         "total_hours": hour_slots.count(),
         "date_time": datetime.now(),
         "department": department,
         "semester": semester,
         "admission_year": admission_year,
+        "teachers_info": teachers_info,
     }
+
     return render(request, "attendance/compact_report.html", context)
+
 
 
 from openpyxl import Workbook

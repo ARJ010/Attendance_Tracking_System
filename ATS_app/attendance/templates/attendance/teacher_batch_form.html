@@ -95,7 +95,7 @@
         {% if is_hod %}
           <td>
             {% for teacher_batch in batch.teacherbatch_set.all %}
-              {{ teacher_batch.teacher.user.first_name }}{% if not forloop.last %}, {% endif %}
+              {{ teacher_batch.teacher.user.get_full_name }}{% if not forloop.last %}, {% endif %}
             {% endfor %}
           </td>
           <td>
@@ -122,7 +122,7 @@
         {% for teacher in teachers %}
           <div>
             <input type="checkbox" id="teacher_{{ teacher.id }}" name="teachers" value="{{ teacher.id }}">
-            <label for="teacher_{{ teacher.id }}">{{ teacher.user.first_name }}</label>
+            <label for="teacher_{{ teacher.id }}">{{ teacher.user.get_full_name }}</label>
           </div>
         {% endfor %}
       </div>

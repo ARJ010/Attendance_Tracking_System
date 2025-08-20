@@ -17,6 +17,7 @@
       <tr>
         <th>Name</th>
         <th>Username</th>
+        <th>Acronym</th>
         <th>Email</th>
         <th>Mobile Number</th>
         <th>Actions</th> <!-- Add this column for actions -->
@@ -25,8 +26,9 @@
     <tbody>
       {% for teacher in teachers %}
         <tr>
-          <td>{{ teacher.user.first_name }}</td>
+          <td>{{ teacher.user.get_full_name }}</td>
           <td>{{ teacher.user.username }}</td>
+          <td>{{ teacher.acronym }}</td>
           <td>{{ teacher.user.email }}</td>
           <td>{{ teacher.phone_number }}</td>
           <td>

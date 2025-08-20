@@ -49,9 +49,29 @@ class Teacher(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)  # Link to default User model
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="teachers")
     phone_number = models.CharField(max_length=15, blank=True)
+    acronym = models.CharField(max_length=10, blank=True, null=True, help_text="E.g., AR for Abhinav Raj")
 
     def __str__(self):
         return self.user.username  # Display the username of the linked user
+    
+    def __str__(self):
+        return self.user.username
+
+    def save(self, *args, **kwargs):
+        # Auto-generate acronym if not provided
+        if not self.acronym and self.user.get_full_name():
+            name = self.user.get_full_name()
+            parts = name.strip().split()
+            if parts:
+                first_initial = parts[0][0].upper()
+                if len(parts) > 2:
+                    last_two = [p[0].upper() for p in parts[-2:]]
+                    self.acronym = "".join([first_initial] + last_two)
+                elif len(parts) == 2:
+                    self.acronym = first_initial + parts[1][0].upper()
+                else:
+                    self.acronym = first_initial
+        super().save(*args, **kwargs)
 
 
 # Course Table

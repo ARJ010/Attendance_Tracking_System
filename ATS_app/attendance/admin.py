@@ -26,7 +26,7 @@ admin.site.register(Student, StudentAdmin)
 
 # Customizing the admin interface for Teacher model
 class TeacherAdmin(admin.ModelAdmin):
-    list_display = ('user', 'department', 'phone_number')
+    list_display = ('user','acronym', 'department', 'phone_number')
     search_fields = ('user__username', 'phone_number')
     list_filter = ('department',)
 

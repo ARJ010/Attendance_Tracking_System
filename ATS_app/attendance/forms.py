@@ -22,7 +22,7 @@ class UserEditForm(forms.ModelForm):
 class TeacherForm(forms.ModelForm):
     class Meta:
         model = Teacher
-        fields = ['department', 'phone_number']
+        fields = ['acronym','department', 'phone_number']
 
     def __init__(self, *args, **kwargs):
         # Get the logged-in teacher from kwargs
