@@ -191,3 +191,29 @@ class TC(models.Model):
 
 
 
+class StudentTransfer(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="transfers")
+    department_from = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        related_name="transfers_from"
+    )
+    department_to = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        related_name="transfers_to"
+    )
+    semester_completed = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(8)],
+        help_text="Number of semesters completed before transfer."
+    )
+    year_of_transfer = models.PositiveIntegerField(default=date.today().year)
+    remarks = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Student Transfer"
+        verbose_name_plural = "Student Transfers"
+        ordering = ["-year_of_transfer"]
+
+    def __str__(self):
+        return f"{self.student.name} transferred from {self.department_from} to {self.department_to} ({self.year_of_transfer})"

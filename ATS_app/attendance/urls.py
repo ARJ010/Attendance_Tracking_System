@@ -14,7 +14,6 @@ urlpatterns = [
     path('remove_student/<int:id>/', views.remove_student, name='remove_student'),
     path('student/<int:student_id>/create-tc/', views.create_tc, name='create_tc'),
     path('tc-details/<int:student_id>/', views.get_tc_details, name='get_tc_details'),
-
     path('teachers/', views.teacher_list, name='teacher_list'),
     path('teachers/add/', views.register_teacher, name='register_teacher'),
     path('teachers/upload', views.upload_teachers, name='upload_teachers'),
@@ -54,3 +53,7 @@ urlpatterns = [
     path('admin-department/', views.admin_department_view, name='admin_department_view'),
 ]
 
+
+
+if not settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -1,9 +1,11 @@
+from collections import defaultdict
+from django.http import HttpResponse
 import csv
 import re
 from django.urls import reverse
 from datetime import date
 from datetime import datetime
-from django.db.models import Min,Count
+from django.db.models import Min, Count
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.http import urlencode
 from django.template.loader import render_to_string
@@ -11,17 +13,19 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
-from django.http import HttpResponse,Http404,JsonResponse, HttpResponseRedirect
-from .models import Student, Teacher, Course,AbsentDetails,Programme,Department, StudentBatch, Batch, TeacherBatch,HourDateBatch,TC
+from django.http import HttpResponse, Http404, JsonResponse, HttpResponseRedirect
+from openpyxl import Workbook
+from .models import Student, Teacher, Course, AbsentDetails, Programme, Department, StudentBatch, Batch, TeacherBatch, HourDateBatch, TC
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 from django.db import IntegrityError
 from django.contrib import messages
 from django.db import transaction
 from .forms import (
-    StudentForm, TeacherForm, CourseForm, 
-    UserEditForm,UserForm,CSVUploadForm,BatchForm,TCForm
+    StudentForm, TeacherForm, CourseForm,
+    UserEditForm, UserForm, CSVUploadForm, BatchForm, TCForm
 )
+
 
 def calculate_year(current_date):
     """
@@ -38,16 +42,20 @@ def clean_name(name):
     """Standardize the name format: convert to uppercase and replace periods with spaces."""
     return name.strip().replace('.', ' ').upper()
 
+
 def HoD_group_required(user):
     """Check if the user belongs to the 'HoD' group."""
     return user.groups.filter(name='HoD').exists()
 
+
 def is_superuser(user):
     return user.is_superuser
+
 
 @login_required
 def index(request):
     return render(request, 'attendance/index.html')
+
 
 @login_required
 def student_list(request, sem):
@@ -55,7 +63,8 @@ def student_list(request, sem):
     department = teacher.department
 
     # Get all semesters available in this department's students
-    semesters = Student.objects.filter(programme__department=department).values_list('current_semester', flat=True).distinct().order_by('current_semester')
+    semesters = Student.objects.filter(programme__department=department).values_list(
+        'current_semester', flat=True).distinct().order_by('current_semester')
 
     # Use the semester from the URL parameter
     selected_semester = sem
@@ -67,7 +76,6 @@ def student_list(request, sem):
     ).order_by('university_register_number')
 
     tc_forms = {student.id: TCForm() for student in students}
-    
 
     return render(request, 'attendance/student_list.html', {
         'students': students,
@@ -76,6 +84,7 @@ def student_list(request, sem):
         'semesters': semesters,
         'selected_semester': selected_semester,
     })
+
 
 @login_required
 def semester_up(request):
@@ -100,7 +109,8 @@ def semester_up(request):
         current_semester=next_sem
     )
     if next_sem_students.exists():
-        messages.error(request, f"Cannot move up: Semester {next_sem} already has students.")
+        messages.error(
+            request, f"Cannot move up: Semester {next_sem} already has students.")
         # Redirect to student_list with current semester
         return redirect(reverse('student_list', args=[sem]))
 
@@ -110,26 +120,30 @@ def semester_up(request):
         current_semester=sem
     )
     updated_count = students_to_update.update(current_semester=next_sem)
-    messages.success(request, f"{updated_count} students moved from semester {sem} to {next_sem}.")
+    messages.success(
+        request, f"{updated_count} students moved from semester {sem} to {next_sem}.")
 
     # Redirect to student_list with next semester selected
     return redirect(reverse('student_list', args=[next_sem]))
 
 
-
 @login_required
 @user_passes_test(HoD_group_required)
 def add_student(request):
-    teacher = Teacher.objects.get(user=request.user)  # Get the teacher associated with the logged-in user
+    # Get the teacher associated with the logged-in user
+    teacher = Teacher.objects.get(user=request.user)
 
     if request.method == 'POST':
-        form = StudentForm(request.POST, teacher=teacher)  # Pass the teacher to the form
+        # Pass the teacher to the form
+        form = StudentForm(request.POST, teacher=teacher)
         if form.is_valid():
             # Save the student with the department associated with the logged-in teacher
             student = form.save(commit=False)
-            student.programme.department = teacher.department  # Assign the department from the teacher
+            # Assign the department from the teacher
+            student.programme.department = teacher.department
             student.save()
-            return redirect(reverse('student_list', args=[student.current_semester]))  # Redirect to the student list after saving
+            # Redirect to the student list after saving
+            return redirect(reverse('student_list', args=[student.current_semester]))
     else:
         form = StudentForm(teacher=teacher)  # Pass the teacher to the form
 
@@ -149,14 +163,17 @@ def download_student_template(request):
 
     # Write the CSV data
     writer = csv.writer(response)
-    writer.writerow(['name', 'programme_name', 'year_of_enrolment', 'university_register_number', 'admission_number', 'current_semester'])  # Header
+    writer.writerow(['name', 'programme_name', 'year_of_enrolment',
+                    'university_register_number', 'admission_number', 'current_semester'])  # Header
 
     # Add example rows
     example_programme = Programme.objects.filter(department=department).first()
     if example_programme:
-        writer.writerow(['John Doe', example_programme.name, '2024', '1234567890', 'ADM001','1'])
+        writer.writerow(['John Doe', example_programme.name,
+                        '2024', '1234567890', 'ADM001', '1'])
     else:
-        writer.writerow(['John Doe', 'Example Programme', '2024', '1234567890', 'ADM001','1'])
+        writer.writerow(['John Doe', 'Example Programme',
+                        '2024', '1234567890', 'ADM001', '1'])
 
     return response
 
@@ -176,9 +193,12 @@ def upload_students(request):
             reader = csv.DictReader(decoded_file)
 
             for row in reader:
-                programme_name = row.get('programme_name')  # Programme name from CSV
-                student_name = clean_name(row.get('name'))  # Clean and validate the student name
-                university_register_number = row.get('university_register_number')
+                # Programme name from CSV
+                programme_name = row.get('programme_name')
+                # Clean and validate the student name
+                student_name = clean_name(row.get('name'))
+                university_register_number = row.get(
+                    'university_register_number')
                 year_of_enrolment = row.get('year_of_enrolment')
                 admission_number = row.get('admission_number')
                 current_semester = row.get('current_semester')
@@ -200,7 +220,8 @@ def upload_students(request):
 
                 # Verify if the programme exists in the HoD's department
                 try:
-                    programme = Programme.objects.get(name=programme_name, department=department)
+                    programme = Programme.objects.get(
+                        name=programme_name, department=department)
                 except Programme.DoesNotExist:
                     messages.error(
                         request,
@@ -211,7 +232,7 @@ def upload_students(request):
                 # Create the student if all validations pass
                 Student.objects.create(
                     name=student_name,
-                    year_of_enrolment =year_of_enrolment,
+                    year_of_enrolment=year_of_enrolment,
                     university_register_number=university_register_number,
                     admission_number=admission_number,
                     programme=programme,
@@ -230,29 +251,33 @@ def upload_students(request):
 @user_passes_test(HoD_group_required)
 def remove_student(request, id):
     student = get_object_or_404(Student, id=id)
-    
+
     # Optionally check if the user has permissions to delete the student
     student.delete()
-    
+
     return redirect(reverse('student_list', args=[student.current_semester]))
+
 
 @login_required
 @user_passes_test(HoD_group_required)
 def edit_student(request, id):
     student = get_object_or_404(Student, id=id)
-    teacher = student.programme.department.teachers.filter(user=request.user).first()  # Use 'teachers' instead of 'teacher_set'
-    
+    teacher = student.programme.department.teachers.filter(
+        user=request.user).first()  # Use 'teachers' instead of 'teacher_set'
+
     if not teacher:
-        return redirect(reverse('student_list', args=[student.current_semester]))  # If the teacher isn't part of the student's department, redirect
+        # If the teacher isn't part of the student's department, redirect
+        return redirect(reverse('student_list', args=[student.current_semester]))
 
     if request.method == 'POST':
         form = StudentForm(request.POST, instance=student, teacher=teacher)
         if form.is_valid():
             form.save()
-            return redirect(reverse('student_list', args=[student.current_semester])) # Redirect to the student list after saving
+            # Redirect to the student list after saving
+            return redirect(reverse('student_list', args=[student.current_semester]))
     else:
         form = StudentForm(instance=student, teacher=teacher)
-    
+
     return render(request, 'attendance/edit_student.html', {'form': form, 'student': student})
 
 
@@ -261,13 +286,15 @@ def teacher_list(request):
     # Get the logged-in teacher's department
     teacher = Teacher.objects.get(user=request.user)
     department = teacher.department
-    
+
     # Filter students based on the department
     teachers = Teacher.objects.filter(department=department)
-    
-    return render(request, 'attendance/teacher_list.html', {'teachers': teachers, 'department':department})
+
+    return render(request, 'attendance/teacher_list.html', {'teachers': teachers, 'department': department})
 
 # View for managing Teacher
+
+
 @login_required
 @user_passes_test(HoD_group_required)
 def register_teacher(request):
@@ -276,7 +303,8 @@ def register_teacher(request):
 
     if request.method == 'POST':
         user_form = UserForm(request.POST)
-        teacher_form = TeacherForm(request.POST, logged_in_teacher=logged_in_teacher)
+        teacher_form = TeacherForm(
+            request.POST, logged_in_teacher=logged_in_teacher)
 
         if user_form.is_valid() and teacher_form.is_valid():
             try:
@@ -319,7 +347,8 @@ def download_teacher_template(request):
     # Write the CSV data
     writer = csv.writer(response)
     writer.writerow(['name', 'department', 'email', 'mobile_number'])  # Header
-    writer.writerow(['John Doe', hod_department.name, 'john.doe@example.com', '9876543210'])  # Example row
+    writer.writerow(['John Doe', hod_department.name,
+                    'john.doe@example.com', '9876543210'])  # Example row
 
     return response
 
@@ -341,30 +370,38 @@ def upload_teachers(request):
             for row in reader:
                 name = row.get('name')
                 department_name = row.get('department')  # Department from CSV
-                first_name = name.split()[0]  # Get the first part of the name for the username
-                email = row.get('email') or f'{first_name.lower()}@example.com'  # Default email if missing
+                # Get the first part of the name for the username
+                first_name = name.split()[0]
+                # Default email if missing
+                email = row.get('email') or f'{first_name.lower()}@example.com'
                 username = first_name.lower()  # Username is the first name in lowercase
-                password = f'{first_name.lower()}@123'  # Default password format: firstname@123
-                mobile_number = row.get('mobile_number') or '1234567890'  # Default mobile number if missing
+                # Default password format: firstname@123
+                password = f'{first_name.lower()}@123'
+                # Default mobile number if missing
+                mobile_number = row.get('mobile_number') or '1234567890'
 
                 # Check if the department matches the HoD's department
                 if department_name != hod_department.name:
-                    messages.warning(request, f"Teacher '{name}' cannot be added to department '{department_name}' as it does not match your department.")
+                    messages.warning(
+                        request, f"Teacher '{name}' cannot be added to department '{department_name}' as it does not match your department.")
                     continue
 
                 # Check if the teacher already exists by username or email
                 if User.objects.filter(username=username).exists():
-                    messages.warning(request, f"User with username '{username}' already exists. Skipping teacher '{name}'.")
+                    messages.warning(
+                        request, f"User with username '{username}' already exists. Skipping teacher '{name}'.")
                     continue
 
                 if User.objects.filter(email=email).exists():
-                    messages.warning(request, f"User with email '{email}' already exists. Skipping teacher '{name}'.")
+                    messages.warning(
+                        request, f"User with email '{email}' already exists. Skipping teacher '{name}'.")
                     continue
 
                 try:
                     # Create a new user
                     with transaction.atomic():
-                        user = User.objects.create_user(username=username, email=email, password=password)
+                        user = User.objects.create_user(
+                            username=username, email=email, password=password)
                         user.first_name = name  # Set the teacher's full name
                         user.save()
 
@@ -375,23 +412,26 @@ def upload_teachers(request):
                             phone_number=mobile_number,  # Mobile number can be edited later
                         )
 
-                    messages.success(request, f"Teacher '{name}' uploaded successfully!")
+                    messages.success(
+                        request, f"Teacher '{name}' uploaded successfully!")
 
                 except Exception as e:
-                    messages.error(request, f"Error uploading teacher '{name}': {e}")
+                    messages.error(
+                        request, f"Error uploading teacher '{name}': {e}")
                     continue
 
-            return redirect('teacher_list')  # Redirect to the teacher list after uploading
+            # Redirect to the teacher list after uploading
+            return redirect('teacher_list')
     else:
         form = CSVUploadForm()
 
     return render(request, 'attendance/upload_teachers.html', {'form': form})
 
 
-
 @login_required
 def edit_teacher(request, teacher_id):
-    teacher = get_object_or_404(Teacher, id=teacher_id)  # Get the teacher instance by id
+    # Get the teacher instance by id
+    teacher = get_object_or_404(Teacher, id=teacher_id)
     user = teacher.user  # Get the related User instance
 
     # Get the logged-in teacher
@@ -399,22 +439,26 @@ def edit_teacher(request, teacher_id):
 
     if request.method == 'POST':
         user_form = UserEditForm(request.POST, instance=user)
-        teacher_form = TeacherForm(request.POST, instance=teacher, logged_in_teacher=logged_in_teacher)
+        teacher_form = TeacherForm(
+            request.POST, instance=teacher, logged_in_teacher=logged_in_teacher)
 
         if user_form.is_valid() and teacher_form.is_valid():
             user_form.save()
             teacher_form.save()
-            messages.success(request, "The teacher's profile has been updated successfully.")
+            messages.success(
+                request, "The teacher's profile has been updated successfully.")
             return redirect('teacher_list')
 
     else:
         user_form = UserEditForm(instance=user)
-        teacher_form = TeacherForm(instance=teacher, logged_in_teacher=logged_in_teacher)
+        teacher_form = TeacherForm(
+            instance=teacher, logged_in_teacher=logged_in_teacher)
 
     return render(request, 'attendance/edit_teacher.html', {
         'user_form': user_form,
         'teacher_form': teacher_form,
     })
+
 
 @login_required
 @user_passes_test(HoD_group_required)
@@ -422,21 +466,25 @@ def reset_password(request, teacher_id):
     try:
         # Get the Teacher instance by ID
         teacher = get_object_or_404(Teacher, id=teacher_id)
-        
+
         # Reset the password for the corresponding User
-        user = teacher.user  # Access the related user (one-to-one relationship)
+        # Access the related user (one-to-one relationship)
+        user = teacher.user
         user.set_password(f"{user.username}@123")
         user.save()
-        
+
         # Display success message
-        messages.success(request, f"Password for teacher {teacher.user.username} has been reset.")
-        
+        messages.success(
+            request, f"Password for teacher {teacher.user.username} has been reset.")
+
     except Teacher.DoesNotExist:
         # Handle the case if the teacher doesn't exist
         messages.error(request, "Teacher not found.")
-    
+
     # Redirect back to the admin page or any page you prefer
-    return HttpResponseRedirect(reverse('teacher_list'))  # Change to your admin page URL
+    # Change to your admin page URL
+    return HttpResponseRedirect(reverse('teacher_list'))
+
 
 @login_required
 def change_password(request, teacher_id):
@@ -447,13 +495,17 @@ def change_password(request, teacher_id):
         form = PasswordChangeForm(user, request.POST)
         if form.is_valid():
             user = form.save()
-            update_session_auth_hash(request, user)  # Keep the user logged in after password change
-            messages.success(request, 'Your password has been successfully updated!')
-            return redirect('teacher_list')  # Redirect to teacher list after successful password change
+            # Keep the user logged in after password change
+            update_session_auth_hash(request, user)
+            messages.success(
+                request, 'Your password has been successfully updated!')
+            # Redirect to teacher list after successful password change
+            return redirect('teacher_list')
     else:
         form = PasswordChangeForm(user)
 
     return render(request, 'attendance/change_password.html', {'form': form, 'teacher': teacher})
+
 
 @login_required
 @user_passes_test(HoD_group_required)
@@ -470,9 +522,11 @@ def delete_teacher(request, teacher_id):
             # Delete the Teacher record
             teacher.delete()
 
-        messages.success(request, f"Teacher '{teacher.user.first_name}' and associated user have been deleted successfully.")
+        messages.success(
+            request, f"Teacher '{teacher.user.first_name}' and associated user have been deleted successfully.")
     except Exception as e:
-        messages.error(request, f"Error deleting teacher '{teacher.user.first_name}': {e}")
+        messages.error(
+            request, f"Error deleting teacher '{teacher.user.first_name}': {e}")
 
     return redirect('teacher_list')
 
@@ -488,7 +542,8 @@ def course_list(request, sem):
         courses = Course.objects.filter(department=department, semester=sem)
     else:
         # Get batches where this teacher is assigned for this semester
-        teacher_batches = TeacherBatch.objects.filter(teacher=teacher, batch__course__semester=sem)
+        teacher_batches = TeacherBatch.objects.filter(
+            teacher=teacher, batch__course__semester=sem)
         courses = Course.objects.filter(
             id__in=teacher_batches.values_list('batch__course', flat=True),
             semester=sem
@@ -505,7 +560,8 @@ def course_list(request, sem):
             batches = Batch.objects.filter(course=course, course__semester=sem)
             # Get all students in these batches
             students = Student.objects.filter(
-                id__in=StudentBatch.objects.filter(batch__in=batches).values_list('student', flat=True)
+                id__in=StudentBatch.objects.filter(
+                    batch__in=batches).values_list('student', flat=True)
             ).distinct()
             course_students[course] = students
 
@@ -517,9 +573,11 @@ def course_list(request, sem):
         'selected_semester': sem,
     })
 
+
 @login_required
 def get_assigned_batch_students(request, batch_id):
-    students = StudentBatch.objects.filter(batch_id=batch_id).select_related('student__programme')
+    students = StudentBatch.objects.filter(
+        batch_id=batch_id).select_related('student__programme')
 
     students_data = [{
         'id': sb.student.id,
@@ -532,6 +590,8 @@ def get_assigned_batch_students(request, batch_id):
     return JsonResponse({'students': students_data})
 
 # View for managing Course
+
+
 @login_required
 @user_passes_test(HoD_group_required)
 def add_course(request):
@@ -541,25 +601,30 @@ def add_course(request):
     if request.method == 'POST':
         form = CourseForm(request.POST, logged_in_teacher=logged_in_teacher)
         if form.is_valid():
-            form.save()
-            return redirect('course_list',1)
+            saved_course = form.save()
+            # Redirect to the course list of the saved course's semester
+            return redirect('course_list', saved_course.semester)
     else:
         form = CourseForm(logged_in_teacher=logged_in_teacher)
 
     return render(request, 'attendance/course_form.html', {'form': form})
+
 
 @login_required
 def edit_course(request, course_id):
     logged_in_teacher = request.user.teacher
     course = get_object_or_404(Course, id=course_id)
     if request.method == 'POST':
-        form = CourseForm(request.POST, instance=course, logged_in_teacher=logged_in_teacher)
+        form = CourseForm(request.POST, instance=course,
+                          logged_in_teacher=logged_in_teacher)
         if form.is_valid():
-            form.save()
-            return redirect('course_list', course.semester) # Redirect to course list after saving
+            saved_course = form.save()
+            # Redirect to the course list of the saved course's semester
+            return redirect('course_list', saved_course.semester)
     else:
         form = CourseForm(instance=course, logged_in_teacher=logged_in_teacher)
     return render(request, 'attendance/edit_course.html', {'form': form, 'course': course})
+
 
 @login_required
 def create_batch(request, course_id):
@@ -577,18 +642,22 @@ def create_batch(request, course_id):
             return redirect('course_list', course.semester)
         else:
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                html = render_to_string('attendance/partial_create_batch_form.html', {'form': form, 'course': course}, request)
+                html = render_to_string(
+                    'attendance/partial_create_batch_form.html', {'form': form, 'course': course}, request)
                 return JsonResponse({'success': False, 'form_html': html})
     else:
         form = BatchForm()
     return render(request, 'attendance/create_batch.html', {'form': form, 'course': course})
 
+
 @login_required
 def create_batch_form(request, course_id):
     course = get_object_or_404(Course, id=course_id)
     form = BatchForm()
-    html = render_to_string('attendance/partial_create_batch_form.html', {'form': form, 'course': course}, request)
+    html = render_to_string('attendance/partial_create_batch_form.html',
+                            {'form': form, 'course': course}, request)
     return HttpResponse(html)
+
 
 @login_required
 def toggle_batch_active(request, batch_id):
@@ -618,7 +687,8 @@ def teacher_batch_assign(request, sem):
     batch_teacher_map = {}
     for batch in batches:
         assigned_teachers = TeacherBatch.objects.filter(batch=batch)
-        batch_teacher_map[batch] = [tb.teacher.user.first_name for tb in assigned_teachers]
+        batch_teacher_map[batch] = [
+            tb.teacher.user.first_name for tb in assigned_teachers]
 
     # Get all teachers in the department for dropdown
     teachers = Teacher.objects.filter(department=department)
@@ -637,7 +707,8 @@ def get_assigned_teachers_for_batch(request, batch_id):
     try:
         batch = Batch.objects.get(id=batch_id)
         teacher_batches = TeacherBatch.objects.filter(batch=batch)
-        teachers = [{"id": tb.teacher.id, "first_name": tb.teacher.user.first_name} for tb in teacher_batches]
+        teachers = [{"id": tb.teacher.id, "first_name": tb.teacher.user.first_name}
+                    for tb in teacher_batches]
         return JsonResponse({"teachers": teachers})
     except Batch.DoesNotExist:
         return JsonResponse({"error": "Batch not found"}, status=404)
@@ -648,7 +719,8 @@ def get_assigned_teachers_for_batch(request, batch_id):
 def assign_teachers_to_batch(request):
     if request.method == 'POST':
         batch_id = request.POST.get('batch_id')
-        teacher_ids = request.POST.getlist('teachers')  # List of selected teacher IDs
+        teacher_ids = request.POST.getlist(
+            'teachers')  # List of selected teacher IDs
 
         batch = get_object_or_404(Batch, id=batch_id)
 
@@ -657,11 +729,13 @@ def assign_teachers_to_batch(request):
 
             # Check for existing assignment
             if TeacherBatch.objects.filter(batch=batch, teacher=teacher).exists():
-                messages.warning(request, f"Teacher {teacher.user.get_full_name()} is already assigned to batch {batch.academic_year}-{batch.part}.")
+                messages.warning(
+                    request, f"Teacher {teacher.user.get_full_name()} is already assigned to batch {batch.academic_year}-{batch.part}.")
             else:
                 TeacherBatch.objects.create(batch=batch, teacher=teacher)
 
-        return redirect(reverse('teacher_batch_assign', args=[batch.course.semester])) # Redirect to the batch-assignment page
+        # Redirect to the batch-assignment page
+        return redirect(reverse('teacher_batch_assign', args=[batch.course.semester]))
 
 
 @login_required
@@ -675,19 +749,19 @@ def remove_teachers_from_batch(request):
             batch = Batch.objects.get(id=batch_id)
             for teacher_id in teacher_ids:
                 try:
-                    teacher_batch = TeacherBatch.objects.get(batch=batch, teacher_id=teacher_id)
+                    teacher_batch = TeacherBatch.objects.get(
+                        batch=batch, teacher_id=teacher_id)
                     teacher_batch.delete()
                 except TeacherBatch.DoesNotExist:
-                    messages.warning(request, f"Teacher ID {teacher_id} not assigned to batch {batch.academic_year}-{batch.part}.")
+                    messages.warning(
+                        request, f"Teacher ID {teacher_id} not assigned to batch {batch.academic_year}-{batch.part}.")
 
             messages.success(request, "Teachers removed successfully.")
 
         except Batch.DoesNotExist:
             raise Http404("Batch not found.")
 
-
         return redirect(reverse('teacher_batch_assign', args=[batch.course.semester]))
-
 
     return redirect(reverse('teacher_batch_assign', args=[batch.course.semester]))
 
@@ -699,17 +773,19 @@ def student_batch_assign(request, sem):
     department = teacher.department
 
     students = Student.objects.filter(
-        programme__department=department, 
+        programme__department=department,
         current_semester=sem
     ).order_by('university_register_number')
 
     batch_query = Batch.objects.filter(
-        active=True, 
+        active=True,
         course__semester=sem
     ).select_related('course')
-    all_batches = batch_query.order_by('course__code')
+    all_batches = batch_query.order_by(
+        'course__department__name', 'course__code')
 
-    student_batches = StudentBatch.objects.select_related('batch__course', 'student').filter(student__in=students)
+    student_batches = StudentBatch.objects.select_related(
+        'batch__course', 'student').filter(student__in=students)
     student_batches_map = {}
     for sb in student_batches:
         student_batches_map.setdefault(sb.student.id, []).append(sb)
@@ -731,12 +807,15 @@ def student_batch_assign(request, sem):
                 batch = get_object_or_404(Batch, id=batch_id)
                 # Ensure batch's course semester matches the parameter
                 if str(batch.course.semester) != str(sem):
-                    messages.warning(request, f"Batch {batch} does not belong to semester {sem}. Skipped.")
+                    messages.warning(
+                        request, f"Batch {batch} does not belong to semester {sem}. Skipped.")
                     continue
-                StudentBatch.objects.get_or_create(student=student, batch=batch)
+                StudentBatch.objects.get_or_create(
+                    student=student, batch=batch)
                 assigned = True
             if assigned:
-                messages.success(request, f"Batches assigned to {student.name}.")
+                messages.success(
+                    request, f"Batches assigned to {student.name}.")
             else:
                 messages.warning(request, "No valid batches assigned.")
         else:
@@ -775,6 +854,7 @@ def get_assigned_batches(request, student_id):
         })
     return JsonResponse({'batches': batch_data})
 
+
 @login_required
 @user_passes_test(HoD_group_required)
 def remove_student_batches(request):
@@ -783,14 +863,15 @@ def remove_student_batches(request):
         batch_ids = request.POST.getlist('batches_to_remove')
 
         student = get_object_or_404(Student, id=student_id)
-        removed_count, _ = StudentBatch.objects.filter(student=student, batch__id__in=batch_ids).delete()
+        removed_count, _ = StudentBatch.objects.filter(
+            student=student, batch__id__in=batch_ids).delete()
 
-        messages.success(request, f"Removed {removed_count} batches from {student.name}.")
+        messages.success(
+            request, f"Removed {removed_count} batches from {student.name}.")
         return redirect('student_batch_assign', sem=student.current_semester)
 
     messages.error(request, "Invalid request.")
     return redirect('student_batch_assign', sem=student.current_semester)
-
 
 
 @login_required
@@ -801,8 +882,10 @@ def take_attendance(request, batch_id):
 
     # Authorization: check if teacher is assigned to this course
     if not TeacherBatch.objects.filter(teacher=teacher, batch=batch).exists():
-        messages.error(request, "You are not authorized to take attendance for this course.")
-        return redirect('course_list', sem=course.semester)  # or your course list URL
+        messages.error(
+            request, "You are not authorized to take attendance for this course.")
+        # or your course list URL
+        return redirect('course_list', sem=course.semester)
 
     # Get students assigned to this batch
     student_batches = StudentBatch.objects.filter(batch=batch)
@@ -812,20 +895,24 @@ def take_attendance(request, batch_id):
     sort_by = request.GET.get('sort_by', 'university_register_number')
 
     if sort_by == "roll_no":
-        students.sort(key=lambda student: student.roll_number or "")  # fixed field name
+        # fixed field name
+        students.sort(key=lambda student: student.roll_number or "")
     else:
-        students.sort(key=lambda student: student.university_register_number or "")
+        students.sort(
+            key=lambda student: student.university_register_number or "")
 
     if request.method == 'POST':
         attendance_date_str = request.POST.get('date', '')
         if not attendance_date_str:
-            messages.warning(request, "Please select a date for taking attendance.")
+            messages.warning(
+                request, "Please select a date for taking attendance.")
             return redirect(request.path)
 
         attendance_date = date.fromisoformat(attendance_date_str)
         selected_hours = request.POST.getlist('hours')
         if not selected_hours:
-            messages.warning(request, "Please select at least one hour to record attendance.")
+            messages.warning(
+                request, "Please select at least one hour to record attendance.")
             return redirect(request.path)
 
         for hour in selected_hours:
@@ -836,12 +923,15 @@ def take_attendance(request, batch_id):
                     date=attendance_date,
                     hour=int(hour),
                 )
-                messages.success(request, f"Attendance successfully recorded for Hour {hour}")
+                messages.success(
+                    request, f"Attendance successfully recorded for Hour {hour}")
             except IntegrityError:
-                existing_record = HourDateBatch.objects.get(batch=batch, date=attendance_date, hour=int(hour))
+                existing_record = HourDateBatch.objects.get(
+                    batch=batch, date=attendance_date, hour=int(hour))
                 teacher_full_name = f"{existing_record.teacher.user.first_name} {existing_record.teacher.user.last_name}"
                 teacher_phone = existing_record.teacher.phone_number
-                messages.warning(request, f"Attendance already taken by {teacher_full_name} ({teacher_phone}) in Hour {hour} on {attendance_date}")
+                messages.warning(
+                    request, f"Attendance already taken by {teacher_full_name} ({teacher_phone}) in Hour {hour} on {attendance_date}")
                 continue
 
             for student in students:
@@ -864,9 +954,6 @@ def take_attendance(request, batch_id):
     })
 
 
-
-
-
 @login_required
 def teacher_attendance_list(request):
     # Ensure the logged-in user is a teacher
@@ -875,12 +962,14 @@ def teacher_attendance_list(request):
         return redirect('home')
 
     teacher = request.user.teacher  # Get the Teacher instance linked to the user
-    attendance_records = HourDateBatch.objects.filter(teacher=teacher).order_by('-date')
+    attendance_records = HourDateBatch.objects.filter(
+        teacher=teacher).order_by('-date')
 
     context = {
         'attendance_records': attendance_records,
     }
     return render(request, 'attendance/teacher_attendance_list.html', context)
+
 
 @login_required
 def teacher_attendance_list(request, sem):
@@ -917,30 +1006,38 @@ def edit_attendance(request, record_id):
     # Ensure the logged-in user is a teacher
     if not hasattr(request.user, 'teacher'):
         messages.error(request, "You are not authorized to access this page.")
-        return redirect('teacher_attendance_list', sem=1)  # or your default semester
+        # or your default semester
+        return redirect('teacher_attendance_list', sem=1)
 
     # Get the attendance record (HourDateBatch) by ID
     attendance_record = get_object_or_404(HourDateBatch, id=record_id)
 
     # Ensure the logged-in teacher is the one who took the attendance
     if attendance_record.teacher != request.user.teacher:
-        messages.error(request, "You are not authorized to edit this attendance.")
+        messages.error(
+            request, "You are not authorized to edit this attendance.")
         return redirect('teacher_attendance_list', sem=attendance_record.batch.course.semester)
 
     # Get all students assigned to this batch
-    student_batches = StudentBatch.objects.filter(batch=attendance_record.batch).select_related('student')
+    student_batches = StudentBatch.objects.filter(
+        batch=attendance_record.batch).select_related('student')
     students = [sb.student for sb in student_batches]
 
     # Sorting logic (optional, you can keep or remove)
-    sort_by = request.GET.get('sort', 'register_number')
-    if sort_by == 'roll_number':
+    sort_by = request.GET.get('sort_by', 'university_register_number')
+
+    if sort_by == "roll_no":
+        # fixed field name
         students.sort(key=lambda student: student.roll_number or "")
     else:
-        students.sort(key=lambda student: student.university_register_number or "")
+        students.sort(
+            key=lambda student: student.university_register_number or "")
 
     # Get existing absences for this attendance record
-    existing_absences = AbsentDetails.objects.filter(hour_date_batch=attendance_record)
-    absent_students = {absence.student.id for absence in existing_absences if not absence.status}
+    existing_absences = AbsentDetails.objects.filter(
+        hour_date_batch=attendance_record)
+    absent_students = {
+        absence.student.id for absence in existing_absences if not absence.status}
 
     if request.method == 'POST':
         # Update absences based on the submitted form
@@ -976,19 +1073,17 @@ def edit_attendance(request, record_id):
     }
     return render(request, 'attendance/edit_attendance.html', context)
 
+
 @login_required
 def remove_attendance(request, record_id):
     # Get the attendance record for this teacher
-    record = get_object_or_404(HourDateBatch, id=record_id, teacher=request.user.teacher)
+    record = get_object_or_404(
+        HourDateBatch, id=record_id, teacher=request.user.teacher)
     # Store the semester for redirect
     sem = record.batch.course.semester
     record.delete()
     messages.success(request, "Attendance record removed successfully!")
     return redirect('teacher_attendance_list', sem=sem)
-
-
-
-
 
 
 @login_required
@@ -1001,12 +1096,15 @@ def attendance_report(request, batch_id):
     total_hours = hour_date_batches.count()
 
     # Students assigned to this batch
-    student_ids = StudentBatch.objects.filter(batch=batch).values_list('student_id', flat=True)
-    students = Student.objects.filter(id__in=student_ids).order_by('university_register_number')
+    student_ids = StudentBatch.objects.filter(
+        batch=batch).values_list('student_id', flat=True)
+    students = Student.objects.filter(
+        id__in=student_ids).order_by('university_register_number')
 
     # All AbsentDetails related to this batch
-    attendance_records = AbsentDetails.objects.filter(hour_date_batch__in=hour_date_batches)
-    attendance_lookup = {(record.student_id, record.hour_date_batch_id): record.status for record in attendance_records}
+    attendance_records = AbsentDetails.objects.filter(
+        hour_date_batch__in=hour_date_batches)
+    attendance_lookup = {(record.student_id, record.hour_date_batch_id)                         : record.status for record in attendance_records}
 
     attendance_data = []
 
@@ -1014,19 +1112,22 @@ def attendance_report(request, batch_id):
         total_present = 0
 
         for hour in hour_date_batches:
-            status = attendance_lookup.get((student.id, hour.id), True)  # Default to present
+            status = attendance_lookup.get(
+                (student.id, hour.id), True)  # Default to present
             if status:
                 total_present += 1
 
         total_absent = total_hours - total_present
-        attendance_percentage = (total_present / total_hours) * 100 if total_hours else 0
+        attendance_percentage = (
+            total_present / total_hours) * 100 if total_hours else 0
 
         attendance_data.append({
             "student": student,
             "total_present": total_present,
             "total_absent": total_absent,
             "attendance_percentage": round(attendance_percentage, 2),
-            "attendance_with_grace": round(attendance_percentage, 2),  # Modify if grace logic is added
+            # Modify if grace logic is added
+            "attendance_with_grace": round(attendance_percentage, 2),
         })
 
     context = {
@@ -1057,14 +1158,16 @@ def compact_attendance_report(request, batch_id):
 
     # Fetch all students for the batch
     students = Student.objects.filter(
-        id__in=StudentBatch.objects.filter(batch=batch).values_list('student_id', flat=True)
+        id__in=StudentBatch.objects.filter(
+            batch=batch).values_list('student_id', flat=True)
     ).order_by('university_register_number')
 
     reg_no = students.first().university_register_number if students else ""
     admission_year = extract_admission_year(reg_no) if reg_no else ""
 
     # Get all HourDateBatch entries for this batch
-    hour_slots = HourDateBatch.objects.filter(batch=batch).order_by('date', 'hour')
+    hour_slots = HourDateBatch.objects.filter(
+        batch=batch).order_by('date', 'hour')
 
     # Build dictionary of all teachers for entire batch (all sessions)
     all_teachers = {}
@@ -1081,7 +1184,8 @@ def compact_attendance_report(request, batch_id):
         date_str = hdb.date.strftime("%d-%m-%Y")
         is_new_date = date_str != last_date
         teacher_acronym = hdb.teacher.acronym if hdb.teacher else ""
-        header_order.append((date_str, hdb.hour, hdb.id, is_new_date, teacher_acronym))
+        header_order.append((date_str, hdb.hour, hdb.id,
+                            is_new_date, teacher_acronym))
         last_date = date_str
 
     # Paginate header_order (6 columns per page)
@@ -1094,10 +1198,12 @@ def compact_attendance_report(request, batch_id):
     current_columns = len(page_obj.object_list)
     visible_columns = list(page_obj.object_list)  # Make a copy
     if current_columns < required_columns:
-        visible_columns += [(None, None, None, False, "")] * (required_columns - current_columns)
+        visible_columns += [(None, None, None, False, "")] * \
+            (required_columns - current_columns)
 
     # Fetch only attendance for visible columns
-    visible_hdb_ids = [hdb_id for _, _, hdb_id, _, _ in visible_columns if hdb_id]
+    visible_hdb_ids = [hdb_id for _, _, hdb_id,
+                       _, _ in visible_columns if hdb_id]
     attendance_lookup = AbsentDetails.objects.filter(
         hour_date_batch_id__in=visible_hdb_ids
     ).values_list('student_id', 'hour_date_batch_id', 'status')
@@ -1107,7 +1213,6 @@ def compact_attendance_report(request, batch_id):
     for student_id, hdb_id, status in attendance_lookup:
         # Assuming status = True means Present, False means Absent
         attendance_map[(student_id, hdb_id)] = "X" if status else "A"
-
 
     # Build report data rows
     report_data = []
@@ -1128,7 +1233,8 @@ def compact_attendance_report(request, batch_id):
         report_data.append(row)
 
     # Prepare list of teachers info with full name and acronym for entire batch
-    teachers_info = [f"{fullname} ({acronym})" for acronym, fullname in all_teachers.items()]
+    teachers_info = [
+        f"{fullname} ({acronym})" for acronym, fullname in all_teachers.items()]
 
     context = {
         "batch": batch,
@@ -1147,11 +1253,6 @@ def compact_attendance_report(request, batch_id):
     return render(request, "attendance/compact_report.html", context)
 
 
-
-from openpyxl import Workbook
-from django.http import HttpResponse
-from collections import defaultdict
-
 @login_required
 def download_attendance_excel(request, course_id):
     course = get_object_or_404(Course, id=course_id)
@@ -1160,11 +1261,13 @@ def download_attendance_excel(request, course_id):
     batches = Batch.objects.filter(course=course)
     # Get all students in these batches (distinct in case of overlap)
     students = Student.objects.filter(
-        id__in=StudentBatch.objects.filter(batch__in=batches).values_list('student_id', flat=True)
+        id__in=StudentBatch.objects.filter(
+            batch__in=batches).values_list('student_id', flat=True)
     ).order_by('university_register_number').distinct()
 
     # Get all HourDateBatch entries for these batches
-    hour_slots = HourDateBatch.objects.filter(batch__in=batches).order_by('date', 'hour')
+    hour_slots = HourDateBatch.objects.filter(
+        batch__in=batches).order_by('date', 'hour')
 
     # Preprocess HourDateBatch to detect date changes
     header_order = []
@@ -1179,7 +1282,8 @@ def download_attendance_excel(request, course_id):
     attendance_lookup = AbsentDetails.objects.filter(hour_date_batch__in=hour_slots).values_list(
         'student_id', 'hour_date_batch_id', 'status'
     )
-    attendance_map = defaultdict(lambda: True)  # Default to present if no record
+    # Default to present if no record
+    attendance_map = defaultdict(lambda: True)
     for student_id, hdb_id, status in attendance_lookup:
         attendance_map[(student_id, hdb_id)] = status
 
@@ -1189,7 +1293,8 @@ def download_attendance_excel(request, course_id):
     ws.title = "Attendance Report"
 
     # Add headers
-    headers = ['Sl. No', 'Reg. No', 'Roll No', 'Name'] + [f'{date} H{hour}' for date, hour, _, _ in header_order]
+    headers = ['Sl. No', 'Reg. No', 'Roll No', 'Name'] + \
+        [f'{date} H{hour}' for date, hour, _, _ in header_order]
     ws.append(headers)
 
     # Add student data rows
@@ -1206,13 +1311,12 @@ def download_attendance_excel(request, course_id):
         ws.append(row)
 
     # Set response for downloading Excel file
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="attendance_report.xlsx"'
     wb.save(response)
 
     return response
-
-
 
 
 @login_required
@@ -1232,9 +1336,11 @@ def student_individual_report(request, student_id):
     semesters = [str(s) for s in semesters]
 
     # 3. Get selected semester from GET, default to current semester
-    selected_semester = request.GET.get('semester', str(student.current_semester))
+    selected_semester = request.GET.get(
+        'semester', str(student.current_semester))
     if selected_semester not in semesters:
-        selected_semester = semesters[-1] if semesters else str(student.current_semester)
+        selected_semester = semesters[-1] if semesters else str(
+            student.current_semester)
 
     # 4. Get all batches for the selected semester
     student_batches = (
@@ -1243,7 +1349,8 @@ def student_individual_report(request, student_id):
         .select_related('batch__course')
     )
     batches = [sb.batch for sb in student_batches]
-    batches.sort(key=lambda batch: (batch.course.code, batch.academic_year, batch.part))
+    batches.sort(key=lambda batch: (
+        batch.course.code, batch.academic_year, batch.part))
 
     # 5. Prepare attendance data
     attendance_data = []
@@ -1316,16 +1423,16 @@ def student_individual_report(request, student_id):
     return render(request, 'attendance/student_report.html', context)
 
 
-
 @login_required
 @user_passes_test(HoD_group_required)
 def department_report(request, department_id):
     # Fetch the department
     department = get_object_or_404(Department, id=department_id)
-    
+
     # Get all students in the department, ordered by their university register number
-    students = Student.objects.filter(programme__department=department).order_by('university_register_number')
-    
+    students = Student.objects.filter(
+        programme__department=department).order_by('university_register_number')
+
     # Calculate total hours taken for the department (sum of all hours in all batches)
     total_hours_taken = HourDateBatch.objects.filter(
         batch__course__department=department
@@ -1343,17 +1450,20 @@ def department_report(request, department_id):
 
         # Get all batches this student is in
         batches = Batch.objects.filter(
-            id__in=StudentBatch.objects.filter(student=student).values_list('batch', flat=True)
+            id__in=StudentBatch.objects.filter(
+                student=student).values_list('batch', flat=True)
         )
 
         # For all those batches, get all HourDateBatch sessions
-        sessions = HourDateBatch.objects.filter(batch__in=batches).order_by('date')
+        sessions = HourDateBatch.objects.filter(
+            batch__in=batches).order_by('date')
 
         total_hours = sessions.count()
 
         # For all those sessions, check attendance
         for session in sessions:
-            attendance_record = AbsentDetails.objects.filter(student=student, hour_date_batch=session).first()
+            attendance_record = AbsentDetails.objects.filter(
+                student=student, hour_date_batch=session).first()
             if attendance_record:
                 if attendance_record.status:
                     total_present += 1
@@ -1366,7 +1476,8 @@ def department_report(request, department_id):
                 total_attended_hours += 1
 
         # Calculate attendance percentage for this student
-        attendance_percentage = (total_attended_hours / total_hours * 100) if total_hours > 0 else 0
+        attendance_percentage = (
+            total_attended_hours / total_hours * 100) if total_hours > 0 else 0
 
         # Append the student's data to the list
         student_data.append({
@@ -1375,7 +1486,7 @@ def department_report(request, department_id):
             'attendance_percentage': round(attendance_percentage, 2),
             'total_hours_taken': total_hours,
         })
-    
+
     # Prepare context for rendering
     context = {
         'department': department,
@@ -1403,7 +1514,8 @@ def programme_courses_view(request):
 
         # Get all batches where at least one student is in this programme
         batches = Batch.objects.filter(
-            id__in=StudentBatch.objects.filter(student__in=student_ids).values_list('batch', flat=True)
+            id__in=StudentBatch.objects.filter(
+                student__in=student_ids).values_list('batch', flat=True)
         )
 
         # For each student, count unique courses (by code) they are in via batches
@@ -1416,7 +1528,8 @@ def programme_courses_view(request):
             .annotate(unique_courses=Count('batch__course__code', distinct=True))
         )
 
-        current_courses_count = sum(entry['unique_courses'] for entry in student_course_counts)
+        current_courses_count = sum(
+            entry['unique_courses'] for entry in student_course_counts)
 
         # Get distinct courses (by picking only one per unique code)
         unique_courses = (
@@ -1425,7 +1538,8 @@ def programme_courses_view(request):
             .values('code')
             .annotate(id=Min('id'))
         )
-        courses = Course.objects.filter(id__in=[entry['id'] for entry in unique_courses]).order_by('code')
+        courses = Course.objects.filter(
+            id__in=[entry['id'] for entry in unique_courses]).order_by('code')
 
         # Calculate the difference
         difference = total_courses_required - current_courses_count
@@ -1440,6 +1554,7 @@ def programme_courses_view(request):
         })
 
     return render(request, 'attendance/programme_courses.html', {'programme_data': programme_data})
+
 
 @login_required
 @user_passes_test(is_superuser)
@@ -1457,10 +1572,11 @@ def admin_department_view(request):
     if request.GET.get('department_id'):
         department_id = request.GET.get('department_id')
         selected_department = get_object_or_404(Department, id=department_id)
-        students = Student.objects.filter(programme__department=selected_department).order_by('university_register_number')
+        students = Student.objects.filter(
+            programme__department=selected_department).order_by('university_register_number')
         teachers = Teacher.objects.filter(department=selected_department)
         courses = Course.objects.filter(department=selected_department)
-        
+
         # Get students assigned to each course (via batches)
         course_students = {}
         for course in courses:
@@ -1468,7 +1584,8 @@ def admin_department_view(request):
             batches = Batch.objects.filter(course=course)
             # Get all students in these batches (distinct)
             assigned_students = Student.objects.filter(
-                id__in=StudentBatch.objects.filter(batch__in=batches).values_list('student', flat=True)
+                id__in=StudentBatch.objects.filter(
+                    batch__in=batches).values_list('student', flat=True)
             ).order_by('name').distinct()
             course_students[course] = assigned_students
     else:
@@ -1482,6 +1599,7 @@ def admin_department_view(request):
         'courses': courses,
         'course_students': course_students,
     })
+
 
 @login_required
 @user_passes_test(HoD_group_required)
@@ -1497,14 +1615,16 @@ def create_tc(request, student_id):
             tc.save()
 
             # Set student semester to 0 after issuing TC
+            sem = student.current_semester
             student.current_semester = 0
             student.save()
 
-            return redirect('student_detail', student_id=student.id)  # or any desired view
+            # Redirect to the student list after saving
+            return redirect(reverse('student_list', args=[sem]))
     else:
         form = TCForm()
 
-    return render(request, 'tc_form.html', {'form': form, 'student': student})
+    return redirect(reverse('student_list', args=[sem]))
 
 
 @login_required
@@ -1515,7 +1635,7 @@ def get_tc_details(request, student_id):
         data = {
             'student': tc.student.name,
             'reason': tc.reason,
-            'current_semester': tc.current_semester,
+            'leaving_semester': tc.leaving_semester,
             'year_of_tc': tc.year_of_tc,
         }
         return JsonResponse({'status': 'success', 'data': data})

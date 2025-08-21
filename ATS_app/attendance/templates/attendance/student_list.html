@@ -428,7 +428,6 @@
                               </div>
                               
 
-                           <!-- TC Modal for this student -->
 <!-- TC Modal for this student -->
 <div class="modal fade" id="tcModal{{ student.id }}" tabindex="-1" aria-labelledby="tcModalLabel{{ student.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -495,7 +494,7 @@
       
                 <p>He/She has applied for a Transfer Certificate for the following reason: <strong><span id="tc-reason">[Reason]</span></strong>.</p>
       
-                <p>The student was studying in <strong>Semester <span id="tc-semester">[Semester]</span></strong> at the time of application.</p>
+                <p>The student has completed up to <strong>Semester <span id="tc-semester">[Semester]</span></strong> at the time of application.</p>
       
                 <p>The Transfer Certificate was issued in the year <strong><span id="tc-year">[Year]</span></strong>.</p>
               </div>
@@ -578,7 +577,7 @@
                 if (data.status === 'success') {
                   document.getElementById('tc-student').textContent = data.data.student;
                   document.getElementById('tc-reason').textContent = data.data.reason;
-                  document.getElementById('tc-semester').textContent = data.data.current_semester;
+                  document.getElementById('tc-semester').textContent = data.data.leaving_semester;
                   document.getElementById('tc-year').textContent = data.data.year_of_tc;
                   new bootstrap.Modal(document.getElementById('tcModal')).show();
                 } else {
