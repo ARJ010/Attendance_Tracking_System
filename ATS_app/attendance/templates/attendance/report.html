@@ -127,8 +127,11 @@
         <table class="info-table">
             <tbody>
                 <tr>
-                    <th>Course</th>
-                    <td>{{ course.code }} - {{ course.name }} </td>
+                    <th>Batch</th>
+                    <td>
+                        {{ batch.course.code }} - {{ batch.course.name }}<br>
+                        Year: {{ batch.academic_year }} | Part: {{ batch.part }}
+                    </td>
                 </tr>
                 <tr>
                     <th>Total Hours Taken</th>
@@ -148,18 +151,20 @@
                 <th>Sl No</th>
                 <th>Reg. No</th>
                 <th>Name</th>
-                <th>No. of Hours Present</th>
-                <th>% of Attendance</th>
+                <th>Hours Present (Phys)</th>
+                <th>Grace Hours</th>
+                <th>% of Attendance (Effective)</th>
             </tr>
         </thead>
         <tbody>
             {% for data in attendance_data %}
             <tr>
                 <td>{{ forloop.counter }}</td>
-                <td>{{ data.student.university_register_number }}</td>
+                <td>{{ data.student.university_register_number|default:"—" }}</td>
                 <td>{{ data.student.name }}</td>
                 <td>{{ data.total_present }}</td>
-                <td>{{ data.attendance_percentage }}</td>
+                <td>{{ data.grace_hours }}</td>
+                <td>{{ data.attendance_with_grace }}%</td>
             </tr>
             {% endfor %}
         </tbody>

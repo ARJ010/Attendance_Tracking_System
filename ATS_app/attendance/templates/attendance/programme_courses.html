@@ -106,17 +106,31 @@
 {% block content %}
     <div class="container mt-5">
         <h2 class="text-center text-primary mb-4">All Programmes and Their Courses</h2>
+
+        <!-- 🔹 Semester Filter Form -->
+        <form method="get" class="semester-filter">
+            <label for="semester"><strong>Filter by Semester:</strong></label>
+            <select name="semester" id="semester" onchange="this.form.submit()">
+                <option value="">All Semesters</option>
+                {% for i in active_semesters %}
+                    <option value="{{ i }}" {% if semester == i %}selected{% endif %}>
+                        Semester {{ i }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+
+        {% if semester %}
+            <p class="text-center text-muted">Showing results for <strong>Semester {{ semester }}</strong></p>
+        {% endif %}
         
         {% for data in programme_data %}
         <div class="card mb-4 shadow-sm page-break">
             <div class="card-header bg-dark text-white">
-                <!-- Enhanced Programme Name -->
                 <h4 class="programme-name mb-1">{{ data.programme.name }}</h4>
                 <p class="mb-1">Total Students: <strong>{{ data.total_students }}</strong></p>
                 <p class="mb-1">Total Courses Required: <strong>{{ data.total_courses_required }}</strong></p>
                 <p class="mb-1">Current Courses Assigned: <strong>{{ data.current_courses_count }}</strong></p>
-                
-                <!-- Display the difference in red if more courses are required -->
                 {% if data.difference > 0 %}
                     <p class="text-danger mb-0">Courses Still Needed: <strong>{{ data.difference }}</strong></p>
                 {% endif %}

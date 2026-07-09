@@ -1,41 +1,340 @@
 {% extends 'base.html' %}
 
-{% block title %}Department Report{% endblock %}
+{% block title %}Department Summary Report{% endblock %}
 
 {% block extra_head %}
-<!-- Add any extra CSS or scripts if needed -->
+<style>
+    /* Clean Academic CSS Styles aligned with Course Attendance Report */
+    body {
+        background-color: #fff;
+    }
+    
+    .page-content {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    table, th, td {
+        border: 1px solid black;
+    }
+    th, td {
+        text-align: center; /* Default center alignment for all columns */
+        padding: 8px;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    
+    /* Header layout */
+    .header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .header h1, .header h2 {
+        margin: 5px;
+    }
+    
+    /* Specific style for Name and Register Number columns to be left-aligned */
+    th:nth-child(2), td:nth-child(2),
+    th:nth-child(4), td:nth-child(4) {
+        text-align: left;
+    }
+
+    /* Style for the information table */
+    .info-table-wrapper {
+        width: 60%;  /* Set the width of the wrapper to 60% of the page width */
+        max-width: 800px;  /* Limit the max width of the table */
+        margin: 0 auto;  /* Center the wrapper horizontally */
+    }
+
+    .info-table {
+        width: 100%;  /* Make the table take the full width of its wrapper */
+        border-collapse: collapse;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+    }
+
+    .info-table th,
+    .info-table td {
+        text-align: left;
+        padding: 10px;
+        font-size: 16px;
+    }
+
+    .info-table th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+        color: #333;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .info-table td {
+        background-color: #fafafa;
+        font-weight: bolder;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .info-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .footer {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .print-btn {
+        background-color: #1976d2;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: background-color 0.2s;
+    }
+    .print-btn:hover {
+        background-color: #1565c0;
+    }
+
+    /* Filtering card styles for screen view */
+    .filter-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        padding: 0.8rem 1.5rem;
+        margin-bottom: 2rem;
+        border: 1.5px solid #eaeaea;
+        max-width: 450px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .filter-form {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.8rem;
+    }
+    .filter-icon {
+        font-size: 1.2rem;
+    }
+    .filter-label {
+        font-weight: 600;
+        font-size: 1.05rem;
+        color: #34495e;
+        margin-bottom: 0;
+    }
+    .select-wrapper {
+        position: relative;
+    }
+    .elegant-select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-color: #f8f9fa;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0.45rem 2.2rem 0.45rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+        cursor: pointer;
+        transition: border-color 0.18s, box-shadow 0.18s;
+        outline: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23475569%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.8rem center;
+        background-size: 1.15em;
+    }
+    .elegant-select:hover {
+        border-color: #94a3b8;
+    }
+    .elegant-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .print-signatures {
+        display: none;
+    }
+
+    .attendance-badge {
+        font-weight: bold;
+    }
+
+    /* Media query for printing */
+    @media print {
+        /* Stretch the table to full width when printing */
+        .info-table-wrapper {
+            width: 100%;
+            max-width: none; /* Remove max width */
+            margin: 0;
+        }
+
+        .info-table {
+            width: 100%;  /* Stretch the table to fit the entire width of the page */
+            border: 1px solid black !important;
+        }
+        .info-table th, .info-table td {
+            border: 1px solid black !important;
+        }
+
+        /* Enforce table width to fit A4 widthwise */
+        table {
+            width: 100% !important;
+            table-layout: fixed;
+            word-wrap: break-word;
+        }
+        th, td {
+            font-size: 12px !important;
+            padding: 6px 4px !important;
+            border: 1px solid black !important;
+        }
+
+        /* Set precise A4 column percentages for clean spacing */
+        th:nth-child(1), td:nth-child(1) { width: 5%; }
+        th:nth-child(2), td:nth-child(2) { width: 20%; }
+        th:nth-child(3), td:nth-child(3) { width: 8%; }
+        th:nth-child(4), td:nth-child(4) { width: 29%; text-align: left; }
+        th:nth-child(5), td:nth-child(5) { width: 9%; }
+        th:nth-child(6), td:nth-child(6) { width: 9%; }
+        th:nth-child(7), td:nth-child(7) { width: 9%; }
+        th:nth-child(8), td:nth-child(8) { width: 11%; }
+
+        /* Hide interactive elements in print version */
+        .print-btn, .navbar, footer, .filter-card {
+            display: none !important;
+        }
+
+        /* Ensure header and footer are visible in print */
+        .header, .footer {
+            display: block;
+        }
+
+        .print-signatures {
+            display: block !important;
+            margin-top: 50px;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-    <h2>Department of {{ department.name }} (Students)</h2>
+<div class="page-content">
+    <div class="header">
+        <h1>Nehru Arts and Science College, Kanhangad</h1>
+        <h2>
+            Department of {{ department.name }} - Summary Report || 
+            Semester: {% if selected_semester == 0 %}Alumni / TC{% else %}{{ selected_semester }}{% endif %}
+        </h2>
+    </div>
+    
+    <div class="filter-card d-print-none">
+        <form method="GET" action="" class="filter-form">
+            <span class="filter-icon">🔍</span>
+            <label for="semester-select" class="filter-label">Filter Semester:</label>
+            <div class="select-wrapper">
+                <select name="semester" id="semester-select" onchange="this.form.submit()" class="elegant-select">
+                    {% for sem in available_semesters %}
+                        <option value="{{ sem }}" {% if sem == selected_semester %}selected{% endif %}>Semester {{ sem }}</option>
+                    {% endfor %}
+                    {% if has_alumni or selected_semester == 0 %}
+                        <option value="0" {% if selected_semester == 0 %}selected{% endif %}>Alumni / TC</option>
+                    {% endif %}
+                </select>
+            </div>
+        </form>
+    </div>
 
+    <div class="info-table-wrapper">
+        <table class="info-table">
+            <tbody>
+                <tr>
+                    <th>Department</th>
+                    <td>{{ department.name }}</td>
+                </tr>
+                <tr>
+                    <th>Semester</th>
+                    <td>{% if selected_semester == 0 %}Alumni / TC{% else %}Semester {{ selected_semester }}{% endif %}</td>
+                </tr>
+                <tr>
+                    <th>Total Students</th>
+                    <td>{{ students|length }}</td>
+                </tr>
+                <tr>
+                    <th>Report Generated Date</th>
+                    <td>{% now "d F Y" %}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Serial No.</th>
-                <th>University Register Number</th>
-                <th>Name</th>
-                <th>Total Hours Taken</th> <!-- New Column -->
-                <th>Total Hours Present</th>
-                <th>Attendance Percentage</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for data in students %}
+    <div class="table-container">
+        <table class="summary-table">
+            <thead>
                 <tr>
-                    <td>{{ forloop.counter }}</td>  <!-- Serial Number -->
-                    <td>{{ data.student.university_register_number }}</td>
-                    <td>{{ data.student.name }}</td>
-                    <td>{{ data.total_hours_taken }}</td> <!-- Total Hours Taken -->
-                    <td>{{ data.total_present }}</td>  <!-- Total Hours Present -->
-                    <td>{{ data.attendance_percentage }}%</td>  <!-- Attendance Percentage -->
+                    <th>Sl No</th>
+                    <th class="text-left">Register No</th>
+                    <th>Roll No</th>
+                    <th class="text-left">Name</th>
+                    <th>Hours Attended</th>
+                    <th>Grace Hours</th>
+                    <th>Hours Held</th>
+                    <th>Percentage</th>
                 </tr>
-            {% empty %}
+            </thead>
+            <tbody>
+                {% for item in students %}
                 <tr>
-                    <td colspan="6" class="text-center">No students found.</td>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="text-left">{{ item.student.university_register_number|default:"None" }}</td>
+                    <td>{{ item.student.roll_number|default:"-" }}</td>
+                    <td class="text-left">{{ item.student.name }}</td>
+                    <td>{{ item.total_present }}</td>
+                    <td>{{ item.total_grace }}</td>
+                    <td>{{ item.total_hours_taken }}</td>
+                    <td>
+                        <span class="attendance-badge {% if item.attendance_percentage < 75.0 %}attendance-danger{% else %}attendance-success{% endif %}">
+                            {{ item.attendance_percentage }}%
+                        </span>
+                    </td>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 20px;">No students found in this department.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Signature block (Print View Only) -->
+    <div class="print-signatures" style="margin-top: 60px;">
+        <div style="display: flex; justify-content: space-between; padding-top: 40px;">
+            <div style="text-align: center; width: 180px;">
+                <p style="border-top: 1px solid #000; padding-top: 8px; font-weight: bold; font-size: 10pt; font-family: Arial, sans-serif; margin: 0;">Class Tutor</p>
+            </div>
+            <div style="text-align: center; width: 180px;">
+                <p style="border-top: 1px solid #000; padding-top: 8px; font-weight: bold; font-size: 10pt; font-family: Arial, sans-serif; margin: 0;">Head of Department</p>
+            </div>
+            <div style="text-align: center; width: 180px;">
+                <p style="border-top: 1px solid #000; padding-top: 8px; font-weight: bold; font-size: 10pt; font-family: Arial, sans-serif; margin: 0;">Principal</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <button class="print-btn" onclick="window.print()">Print Report</button>
+    </div>
+</div>
 {% endblock %}

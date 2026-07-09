@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Department, Programme, Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails
+from .models import Department, Programme, Student, Teacher, Course
 
 # Customizing the admin interface for Department model
 class DepartmentAdmin(admin.ModelAdmin):
@@ -26,7 +26,7 @@ admin.site.register(Student, StudentAdmin)
 
 # Customizing the admin interface for Teacher model
 class TeacherAdmin(admin.ModelAdmin):
-    list_display = ('user', 'department', 'phone_number')
+    list_display = ('user','acronym', 'department', 'phone_number')
     search_fields = ('user__username', 'phone_number')
     list_filter = ('department',)
 
@@ -40,34 +40,80 @@ class CourseAdmin(admin.ModelAdmin):
 
 admin.site.register(Course, CourseAdmin)
 
-# Customizing the admin interface for StudentCourse model
-class StudentCourseAdmin(admin.ModelAdmin):
-    list_display = ('student', 'course', 'year')
-    search_fields = ('student__name', 'course__name')
-    list_filter = ('year', 'course', 'student__programme__department')  # Added department filter
 
-admin.site.register(StudentCourse, StudentCourseAdmin)
+from django.contrib import admin
+from .models import (
+    Department, Programme, Student, Teacher, Course,
+    StudentBatch, TeacherBatch, Batch, HourDateBatch, AbsentDetails,TC,StudentTransfer, GraceAttendance
+)
 
-# Customizing the admin interface for TeacherCourse model
-class TeacherCourseAdmin(admin.ModelAdmin):
-    list_display = ('teacher', 'course', 'year')
-    search_fields = ('teacher__user__username', 'course__name')
-    list_filter = ('year', 'course', 'teacher__department')  # Added department filter
 
-admin.site.register(TeacherCourse, TeacherCourseAdmin)
+@admin.register(TC)
+class TCAdmin(admin.ModelAdmin):
+    list_display = ('student', 'leaving_semester', 'year_of_tc', 'reason_short')
+    search_fields = ('student__name', 'student__university_register_number', 'reason')
+    list_filter = ('year_of_tc', 'leaving_semester')
 
-# Customizing the admin interface for HourDateCourse model
-class HourDateCourseAdmin(admin.ModelAdmin):
-    list_display = ('course', 'teacher', 'date', 'hour', 'year')
-    search_fields = ('course__name', 'teacher__user__username', 'date')
-    list_filter = ('hour', 'year')
+    def reason_short(self, obj):
+        return (obj.reason[:50] + '...') if len(obj.reason) > 50 else obj.reason
 
-admin.site.register(HourDateCourse, HourDateCourseAdmin)
+    reason_short.short_description = 'Reason'
 
-# Customizing the admin interface for AbsentDetails model
+
+
+# Batch Admin
+@admin.register(Batch)
+class BatchAdmin(admin.ModelAdmin):
+    list_display = ('course', 'academic_year', 'part', 'active')
+    list_filter = ('academic_year', 'part', 'active')
+    search_fields = ('course__name', 'course__code')
+
+# StudentBatch Admin
+@admin.register(StudentBatch)
+class StudentBatchAdmin(admin.ModelAdmin):
+    list_display = ('student', 'batch')
+    search_fields = ('student__name', 'batch__course__name')
+    list_filter = ('batch__academic_year', 'batch__course')
+
+# TeacherBatch Admin
+@admin.register(TeacherBatch)
+class TeacherBatchAdmin(admin.ModelAdmin):
+    list_display = ('teacher', 'batch')
+    search_fields = ('teacher__name', 'batch__course__name')
+    list_filter = ('batch__academic_year', 'batch__course')
+
+# HourDateBatch Admin
+@admin.register(HourDateBatch)
+class HourDateBatchAdmin(admin.ModelAdmin):
+    list_display = ('batch', 'teacher', 'date', 'hour')
+    search_fields = ('batch__course__name', 'teacher__user__username', 'date')
+    list_filter = ('date', 'hour')
+
+# AbsentDetails Admin
+@admin.register(AbsentDetails)
 class AbsentDetailsAdmin(admin.ModelAdmin):
-    list_display = ('student', 'hour_date_course', 'status')
-    search_fields = ('student__name', 'hour_date_course__course__name', 'hour_date_course__teacher__user__username')
+    list_display = ('student', 'hour_date_batch', 'status')
+    search_fields = ('student__name', 'hour_date_batch__teacher_batch__teacher__name')
     list_filter = ('status',)
 
-admin.site.register(AbsentDetails, AbsentDetailsAdmin)
+
+@admin.register(StudentTransfer)
+class StudentTransferAdmin(admin.ModelAdmin):
+    list_display = (
+        "student",
+        "department_from",
+        "department_to",
+        "semester_completed",
+        "year_of_transfer",
+        "remarks",
+    )
+    list_filter = ("year_of_transfer", "department_from", "department_to")
+    search_fields = ("student__name", "student__admission_number", "remarks")
+    ordering = ("-year_of_transfer",)
+
+
+@admin.register(GraceAttendance)
+class GraceAttendanceAdmin(admin.ModelAdmin):
+    list_display = ('student', 'hour_date_batch', 'reason', 'applied_at')
+    search_fields = ('student__name', 'student__university_register_number', 'reason')
+    list_filter = ('applied_at', 'reason')

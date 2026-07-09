@@ -1,0 +1,55 @@
+# Deployment Checklist (Updated Files)
+
+The following files have been modified or added to resolve critical bugs, security vulnerabilities, performance bottlenecks, template link bugs, the **Grace Attendance System**, the **College-Wide Semester Bulk Deactivation System**, and the **Admin Department Dashboard Upgrades**. You should replace these files in the corresponding locations on your original production server.
+
+## Summary of Updated Files
+
+| File Path | Change Type | Purpose / Description |
+| :--- | :--- | :--- |
+| **`attendance/models.py`** | `Modified` | Appended the new `GraceAttendance` model class to track student approved reasons (NSS, NCC, etc.) for missing sessions. |
+| **`attendance/admin.py`** | `Modified` | Registered `GraceAttendance` with a customized audit list display and query filter panels. |
+| **`attendance/urls.py`** | `Modified` | Removed the Excel export URL route, added `toggle_teacher_active` and `admin_toggle_hod` routes, and registered the new HOD grace management route (`student/<int:student_id>/grace/`) and admin college-wide bulk deactivate route (`admin-department/bulk-deactivate-batches/`). |
+| **`attendance/views.py`** | `Modified` | Restructured logic to fix unbound variable crashes, added fallback queries for superusers (preventing `Teacher.DoesNotExist` crashes), enforced POST method on deletions, resolved $N+1$ query performance bottlenecks, handled Semester 8 alumni transition, deduplicated upload usernames, implemented semester filtering logic on the department report, corrected/synced sorting and programme-extraction logic in the `take_attendance` view, restricted `toggle_batch_active` backend view to HODs, separated active and inactive teachers in the `teacher_list` view, added `toggle_teacher_active` POST view, filtered out deactivated/inactive teachers from other assignment lists, added pattern validation for student university register numbers in CSV uploads, refactored `programme_courses_view` to group assignments by course code (so split theory/practical papers count as 1, matching the target 6 requirements), added `active_semesters` with registered students to the context of `programme_courses_view`, added `admin_toggle_hod` POST view, and appended student row anchor hashes to redirected URLs in `student_batch_assign` and `remove_student_batches`. <br>**For Grace Attendance:** Added the `get_student_batch_stats` helper function, implemented the HOD `manage_grace_attendance` view, updated `student_individual_report` to compute physical vs. effective stats, updated `attendance_report` and `department_report` to prefetch and factor in grace hours, and added grace deletion cleanups inside `edit_attendance`. <br>**For Semester Bulk Deactivate:** Added the `admin_bulk_deactivate_batches` view to freeze active course batches across all departments. <br>**For Admin Department Dashboard:** Updated `admin_department_view` to support semester filtering on both student and course lists, group course rosters by batch, and retrieve batch active states. |
+| **`attendance/forms.py`** | `Modified` | Added `validate_university_reg_no` custom validator function and applied it to `StudentForm` and `AdminStudentForm` to enforce the format `NA24MATR001` (where the programme code is exactly 4 letters). |
+| **`attendance/templatetags/custom_filters.py`** | `Modified` | Added `has_group` custom template filter to check user group membership in templates. |
+| **`attendance/templates/attendance/index.html`** | `Modified` | Fixed homepage dashboard link rendering by replacing `semesters` with `active_semesters` context variable. |
+| **`attendance/templates/attendance/department.html`** | `New (Added)` | **Created missing template** for the Department Summary attendance report page, implemented semester filtering logic, and configured print media CSS queries matching the Course Attendance Report (`report.html`). Added a new column for **Grace Hours** and adjusted print widths for A4 compatibility. |
+| **`attendance/templates/attendance/admin_page.html`** | `Modified` | Added **College-Wide Semester Bulk Freeze** form card with a Javascript confirmation popup to allow administrators to freeze all active batches college-wide for a selected semester in a single click. |
+| **`attendance/templates/attendance/admin_department_view.html`** | `Modified` | **Updated template** for the Admin Department overview. Displays tabbed views of teachers, students, and courses, complete with HOD promotion/demotion action buttons. Added semester dropdown filter, integrated direct report links for students (individual student report) and departments (department summary report), grouped courses by batches, display academic year, part, and active/inactive status badges for each batch, and embedded direct report links (course summary and compact grid reports) next to each batch. |
+| **`attendance/templates/attendance/grace_assignment.html`** | `New (Added)` | **Created new template** for HODs and administrators to audit a student's absences, select specific hours, input duty reasons (e.g. NSS, NCC, Sports), and grant or revoke grace attendance. |
+| **`attendance/templates/attendance/student_report.html`** | `Modified` | Added **Manage Grace Attendance** action button for HODs. Integrated grace icons and reasons directly in hour-by-hour tables, and displayed dual summaries (Physical vs. Effective percentage). |
+| **`attendance/templates/attendance/report.html`** | `Modified` | Added Grace columns to header lists and student rows to display physical, grace, and effective percentages. |
+| **`attendance/templates/attendance/compact_report.html`** | `Modified` | Integrated grace reasons directly inside grid dates/hours cells (highlighted in bold blue) instead of displaying "A". |
+| **`attendance/templates/attendance/programme_courses.html`** | `Modified` | Displays the combined list of unique courses selected by students of each department from their department and other departments together without duplicates. The semester filter dropdown lists only semesters containing registered students. |
+| **`attendance/templates/attendance/student_batch_form.html`** | `Modified` | Updated student rows in the table with unique id tags (`student-row-{{ student.id }}`). Converted the courses/batches assignment modal from a vertical list accordion to clean Bootstrap department nav-tabs. |
+| **`attendance/templates/attendance/take_attendance.html`** | `Modified` | Restructured sorting buttons to persist active selection state, added programme/department filter buttons, and updated sorting/filtering JavaScript to be consistent, numerically sort roll numbers, group by department acronyms, and dynamically adjust table index numbering. |
+| **`attendance/templates/attendance/course_list.html`** | `Modified` | Restructured the batch listing table so that the "Activate" and "Deactivate" batch buttons are only visible to HODs. |
+| **`attendance/templates/attendance/teacher_list.html`** | `Modified` | Restructured teacher list view to only show active teachers in the main table. If inactive teachers exist, it renders a collapsed Bootstrap card/table at the bottom containing inactive teachers with the option to Reactivate them. |
+| **`attendance/templates/attendance/student_list.html`** | `Modified` | Converted student deletion action to a secure POST form and moved the `tcModal` and `transferModal` divs into a separate loop outside the `<table>` to avoid browser HTML parser confusion that rendered modals inline. |
+| **`attendance/templates/attendance/teacher_list.html`** | `Modified` | Converted teacher deletion action from a secure POST form containing a CSRF token. |
+| **`attendance/templates/attendance/teacher_attendance_list.html`** | `Modified` | Converted attendance record deletion action from a GET hyperlink to a secure POST form containing a CSRF token. |
+| **`attendance/migrations/0003_remove_student_department_alter_course_department.py`** | `New (Added)` | Restored a missing migration file reference to fix database dependency graph consistency. |
+| **`attendance/migrations/0006_course_semester.py`** | `New (Added)` | Restored a missing migration file reference to fix database dependency graph consistency. |
+| **`attendance/migrations/0016_alter_hourdatecourse_unique_together.py`** | `New (Added)` | Restored a missing migration file reference to fix database dependency graph consistency. |
+| **`attendance/migrations/0021_student_year_of_enrolment_batch_teacherbatch_and_more.py`** | `New (Added)` | **Restored migration operations** to define `Batch`, `TeacherBatch`, `HourDateBatch`, and `NewAbsentDetails` models, resolving the `KeyError: ('attendance', 'hourdatebatch')` project state crash during migrations. |
+| **`attendance/migrations/0034_remove_student_department_and_more.py`** | `New (Added)` | **Created migration** to define `GraceAttendance` table and establish schema relationships. |
+
+---
+
+## Detailed File-by-File Changes for Grace & Bulk Freeze
+
+### 1. `attendance/models.py`
+* Added `GraceAttendance` model class. Tracks the foreign key relation to the student, the class session `hour_date_batch`, and the character field `reason` (representing the approved activity name).
+* Unique constraint applied to `(student, hour_date_batch)` to enforce database integrity.
+* Foreign keys point with `on_delete=models.CASCADE` so that deleting students or class hours automatically cascades and deletes their grace attendance markers.
+
+### 2. `attendance/views.py`
+* **Imports:** Added `GraceAttendance` to the models import statement at line 16.
+* **`get_student_batch_stats`:** Introduced helper function to calculate physical, grace, and effective percentages for a student-batch.
+* **`manage_grace_attendance`:** Built the HOD controller view. Processes GET request to list absences mapped against existing grace records. Processes POST request to grant grace (verifying the student was actually marked absent first) or revoke existing grace records.
+* **`student_individual_report`:** Fetches grace entries in a single query. Modifies status rendering to label corresponding hours as `'Grace'`. Calculates dual stats showing physical vs. effective ratios.
+* **`attendance_report`:** Queries and maps grace records for a batch, rendering physical present counts, grace hours, and effective percentages in the batch report table.
+* **`department_report`:** Prefetches `GraceAttendance` in a single query for all student sessions. Incorporates grace hours into effective attendance values for department percentage statistics.
+* **`edit_attendance`:** Automatically deletes grace records if a student's status is changed from Absent to Present by a teacher during editing.
+* **`admin_bulk_deactivate_batches`:** Added secure POST view to deactivate active course batches across all departments for a given semester.
+* **`admin_department_view`:** Updated to filter lists by semester parameter and group courses by their batch objects rather than showing a flat course listing.

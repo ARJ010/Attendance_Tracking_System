@@ -103,6 +103,13 @@
         border-radius: 6px;
     }
 
+    /* Highlighted sort button */
+    .sort-selected {
+        background-color: #0d6efd !important;
+        color: white !important;
+        border-color: #0a58ca !important;
+    }
+
     /* Form Layout */
     .form-container {
         border: 1px solid #ddd;
@@ -157,10 +164,22 @@
                 </div>
             </div>
 
+            <!-- Programme Filter Options -->
+            {% if programmes|length > 1 %}
+            <div class="d-flex flex-wrap justify-content-center gap-2 my-3 d-print-none">
+                <button type="button" class="btn btn-dark filter-btn" data-programme="all">All Programmes</button>
+                {% for prog in programmes %}
+                    <button type="button" class="btn btn-outline-dark filter-btn" data-programme="{{ prog.id }}">
+                        {{ prog.name }}
+                    </button>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <!-- Sorting Options -->
             <div class="d-flex justify-content-center gap-3 my-3">
-                <button type="button" class="btn btn-outline-primary" id="sort-reg">Sort by Register No.</button>
-                <button type="button" class="btn btn-outline-secondary" id="sort-roll">Sort by Roll No.</button>
+                <button type="button" class="btn btn-outline-primary {% if sort_by != 'roll_no' %}sort-selected{% endif %}" id="sort-reg">Sort by Register No.</button>
+                <button type="button" class="btn btn-outline-secondary {% if sort_by == 'roll_no' %}sort-selected{% endif %}" id="sort-roll">Sort by Roll No.</button>
             </div>
 
             <!-- Student List -->
@@ -177,10 +196,10 @@
                     </thead>
                     <tbody id="student-table">
                         {% for student in students %}
-                            <tr data-reg="{{ student.university_register_number }}" data-roll="{{ student.roll_number }}">
+                            <tr data-reg="{{ student.university_register_number|default:'' }}" data-roll="{{ student.roll_number|default:'' }}" data-programme="{{ student.programme.id }}">
                                 <td>{{ forloop.counter }}</td>
-                                <td>{{ student.university_register_number }}</td>
-                                <td>{{ student.roll_number }}</td>
+                                <td>{{ student.university_register_number|default:"-" }}</td>
+                                <td>{{ student.roll_number|default:"-" }}</td>
                                 <td>{{ student.name }}</td>
                                 <td>
                                     <label class="custom-checkbox">
@@ -196,7 +215,7 @@
 
             <div class="text-center mt-4">
                 <button type="submit" class="btn btn-dark btn-lg btn-submit">Submit Attendance</button>
-                <a href="{% url 'course_list' %}" class="btn btn-outline-dark ms-3">Back</a>
+                <a href="{% url 'course_list' course.semester %}" class="btn btn-outline-dark ms-3">Back</a>
             </div>
         </form>
     </div>
@@ -219,74 +238,104 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 
+    let currentFilter = "all";
+    let currentSort = "{% if sort_by == 'roll_no' %}roll{% else %}reg{% endif %}";
+
+    // Sort buttons
     let sortRegButton = document.getElementById("sort-reg");
     let sortRollButton = document.getElementById("sort-roll");
 
     if (sortRegButton) {
-        sortRegButton.addEventListener("click", sortTableByRegister);
-    } else {
-        console.error("Error: 'sort-reg' button not found!");
+        sortRegButton.addEventListener("click", function () {
+            currentSort = "reg";
+            sortRegButton.classList.add("sort-selected");
+            if (sortRollButton) sortRollButton.classList.remove("sort-selected");
+            applyFilterAndSort();
+        });
     }
 
     if (sortRollButton) {
-        sortRollButton.addEventListener("click", sortTableByGroupAndRoll);
-    } else {
-        console.error("Error: 'sort-roll' button not found!");
+        sortRollButton.addEventListener("click", function () {
+            currentSort = "roll";
+            sortRollButton.classList.add("sort-selected");
+            if (sortRegButton) sortRegButton.classList.remove("sort-selected");
+            applyFilterAndSort();
+        });
     }
 
-    function extractGroup(registerNumber) {
-        let match = registerNumber.match(/^NA\d{2}([A-Z]+)\d+$/);
-        return match ? match[1] : "ZZZ"; // "ZZZ" ensures ungrouped students appear last
-    }
+    // Filter buttons
+    document.querySelectorAll(".filter-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            // Update active button styling
+            document.querySelectorAll(".filter-btn").forEach(btn => {
+                btn.classList.remove("btn-dark");
+                btn.classList.add("btn-outline-dark");
+            });
+            this.classList.remove("btn-outline-dark");
+            this.classList.add("btn-dark");
 
-    function sortTableByRegister() {
+            currentFilter = this.getAttribute("data-programme");
+            applyFilterAndSort();
+        });
+    });
+
+    function applyFilterAndSort() {
         let table = document.getElementById("student-table");
+        if (!table) return;
         let rows = Array.from(table.getElementsByTagName("tr"));
 
-        rows.sort((a, b) => {
-            let regA = a.getAttribute("data-reg") || "";
-            let regB = b.getAttribute("data-reg") || "";
-            return regA.localeCompare(regB);
-        });
+        // 1. Sort all rows
+        if (currentSort === "reg") {
+            rows.sort((a, b) => {
+                let regA = a.getAttribute("data-reg") || "";
+                let regB = b.getAttribute("data-reg") || "";
+                
+                // Handle empty register numbers (send to the end)
+                if (regA === "" || regA === "None") return 1;
+                if (regB === "" || regB === "None") return -1;
+                
+                return regA.localeCompare(regB);
+            });
+        } else if (currentSort === "roll") {
+            let students = rows.map(row => {
+                let reg = row.getAttribute("data-reg") || "";
+                let rollStr = row.getAttribute("data-roll") || "";
+                
+                // Parse roll number numerically, send empty/None to the end (Infinity)
+                let roll = rollStr === "" || rollStr === "None" ? Infinity : parseInt(rollStr, 10);
+                if (isNaN(roll)) roll = Infinity;
 
-        updateTable(rows, table);
-    }
+                // Extract group
+                let group = reg.match(/NA\d{2}([A-Z]+)/)?.[1] || "ZZZ";
+                return { row, reg, roll, group };
+            });
+            
+            students.sort((a, b) => {
+                if (a.group !== b.group) return a.group.localeCompare(b.group);
+                if (a.roll !== b.roll) return a.roll - b.roll;
+                return a.reg.localeCompare(b.reg);
+            });
+            
+            rows = students.map(s => s.row);
+        }
 
-    function sortTableByGroupAndRoll() {
-        let table = document.getElementById("student-table");
-        let rows = Array.from(table.getElementsByTagName("tr"));
-
-        let students = rows.map(row => {
-            let reg = row.getAttribute("data-reg") || "";
-            let rollStr = row.getAttribute("data-roll") || "None";
-            let roll = rollStr === "None" || rollStr.trim() === "" ? Infinity : parseInt(rollStr, 10);
-            let group = reg.match(/NA\d{2}([A-Z]+)/)?.[1] || ""; // Extract group name
-
-            return { row, reg, roll, group };
-        });
-
-        students.sort((a, b) => {
-            if (a.group !== b.group) {
-                return a.group.localeCompare(b.group); // Sort by group name
-            }
-            if (a.roll !== b.roll) {
-                return a.roll - b.roll; // Sort by roll number if available
-            }
-            return a.reg.localeCompare(b.reg); // Sort by register number
-        });
-
-        let sortedRows = students.map(student => student.row);
-        updateTable(sortedRows, table);
-    }
-
-    function updateTable(sortedRows, table) {
+        // 2. Filter & Update Table DOM
         let index = 1;
-        sortedRows.forEach(row => {
-            row.cells[0].textContent = index++; // Update serial number
+        rows.forEach(row => {
+            let rowProg = row.getAttribute("data-programme");
+            if (currentFilter === "all" || rowProg === currentFilter) {
+                row.style.display = "";
+                row.cells[0].textContent = index++;
+            } else {
+                row.style.display = "none";
+            }
             table.appendChild(row);
         });
     }
-});
 
+    // Run initial filter and sort to ensure styling is applied and order is correct
+    applyFilterAndSort();
+});
 </script>
 {% endblock %}
+

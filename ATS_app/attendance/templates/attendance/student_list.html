@@ -1,73 +1,585 @@
 {% extends 'base.html' %}
 
 {% block title %}Student List{% endblock %}
+{% load custom_filters %}
+
 
 {% block extra_head %}
 <style>
-    .sortable {
-        cursor: pointer;
-        user-select: none;
-        padding-right: 15px;
+    body {
+        background: #f7f8fa;
+    }
+    
+    .page-content {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem 1rem 3rem 1rem;
+    }
+    
+    h2 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 1.2rem;
+        color: #2c3e50;
+        letter-spacing: 0.5px;
+    }
+    
+    .semester-controls-row {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2.2rem;
+        padding: 1.1rem 1.5rem;
+        background: rgba(255,255,255,0.7);
+        border-radius: 18px;
+        box-shadow: 0 8px 32px 0 rgba(31,38,135,0.13);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        border: 1.5px solid rgba(255,255,255,0.18);
+        max-width: 600px;
+        margin-left: 0;
+    }
+    
+    .semester-controls-row form {
+        display: flex;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .semester-controls-row label {
+        font-weight: 600;
+        margin-right: 0.7rem;
+        font-size: 1.08rem;
+        color: #2d3748;
+        letter-spacing: 0.02em;
+    }
+    
+    .semester-controls-row select {
+        padding: 0.45rem 1.2rem 0.45rem 0.8rem;
+        border-radius: 8px;
+        border: 1.5px solid #b2bec3;
+        font-size: 1.08rem;
+        background: rgba(245, 246, 250, 0.85);
+        color: #222;
+        margin-right: 0.7rem;
+        min-width: 120px;
+        box-shadow: 0 2px 8px rgba(44,62,80,0.04);
+        transition: border 0.2s, box-shadow 0.2s;
+    }
+    .semester-controls-row select:focus {
+        border: 1.5px solid #6c63ff;
+        outline: none;
+        box-shadow: 0 0 0 2px #6c63ff33;
+    }
+    
+    
+    @media (max-width: 700px) {
+        .semester-controls-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+            padding: 0.8rem 0.7rem;
+            max-width: 100%;
+        }
+        .semester-controls-row form {
+            width: 100%;
+        }
+        .semester-controls-row select,
+        .semester-controls-row button {
+            width: 100%;
+            margin: 0;
+        }
+    }
+    .action-buttons a {
+        margin-right: 0.4rem;
+        margin-bottom: 0.2rem;
+        display: inline-block;
+    }
+    
+    .table-container {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 12px rgba(44,62,80,0.07);
+        padding: 1.2rem;
+        margin-top: 1.2rem;
+        overflow-x: auto;
+    }
+    
+    #studentTable {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        font-size: 1rem;
+    }
+    
+    #studentTable th, #studentTable td {
+        padding: 0.7rem 0.8rem;
+        border-bottom: 1px solid #eaeaea;
+        text-align: left;
+    }
+    
+    #studentTable th {
+        background: #f5f6fa;
+        font-weight: 700;
+        color: #34495e;
         position: relative;
     }
-    .sortable span {
-        position: absolute;
-        right: 0;
-        font-size: 14px;
-        transition: all 0.3s ease;
+    
+    #studentTable tr:hover {
+        background: #f9fbe7;
+    }
+    
+    #studentTable th.sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.2s;
+    }
+    
+    #studentTable th.sortable:hover {
+        background: #ffe082;
+    }
+    
+    #studentTable th .sort-arrow {
+        font-size: 1em;
+        margin-left: 0.3em;
+        color: #bdb76b;
+    }
+    
+    .text-center {
+        text-align: center;
+    }
+
+    .elegant-btn, .elegant-btn:visited {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.45rem 1.3rem;
+        border-radius: 6px;
+        border: 1.5px solid #b0b4ba;
+        background: #f7f8fa;
+        color: #222;
+        font-weight: 500;
+        font-size: 1.05rem;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(44,62,80,0.06);
+        transition: background 0.18s, border 0.18s, color 0.18s, box-shadow 0.18s;
+        margin-left: 0.7rem;
+        text-decoration: none;
+        letter-spacing: 0.01em;
+        gap: 0.5em;
+    }
+    .elegant-btn:hover, .elegant-btn:focus {
+        background: #e9ecef;
+        border-color: #888;
+        color: #111;
+        box-shadow: 0 2px 8px rgba(44,62,80,0.10);
+        text-decoration: none;
+    }
+    .elegant-btn-secondary {
+        background: #f3f4f7;
+        color: #2d3748;
+        border-color: #b0b4ba;
+    }
+    .elegant-btn-secondary:hover, .elegant-btn-secondary:focus {
+        background: #e2e6ea;
+        color: #111;
+        border-color: #888;
+    }
+    .semester-controls-row button.elegant-btn {
+        margin-left: 0.7rem;
+    }
+    .semester-controls-row a.elegant-btn {
+        margin-left: 0.7rem;
+    }
+    .semester-controls-row {
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        margin-bottom: 2.2rem;
+        flex-wrap: wrap;
+        background: none;
+        box-shadow: none;
+        border: none;
+        padding: 0;
+        max-width: 900px;
+        margin-left: 0;
+    }
+    .semester-controls-row form {
+        display: flex;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+    }
+    .semester-controls-row label {
+        font-weight: 600;
+        margin-right: 0.7rem;
+        font-size: 1.08rem;
+        color: #2d3748;
+        letter-spacing: 0.02em;
+    }
+    .semester-controls-row select {
+        padding: 0.45rem 1.2rem 0.45rem 0.8rem;
+        border-radius: 6px;
+        border: 1.5px solid #b0b4ba;
+        font-size: 1.08rem;
+        background: #f7f8fa;
+        color: #222;
+        margin-right: 0.7rem;
+        min-width: 120px;
+        box-shadow: 0 1px 3px rgba(44,62,80,0.04);
+        transition: border 0.18s, box-shadow 0.18s;
+    }
+    .semester-controls-row select:focus {
+        border: 1.5px solid #888;
+        outline: none;
+        box-shadow: 0 0 0 2px #b0b4ba33;
+    }
+
+    .semester-up-btn.enabled-btn {
+        background: #43a047 !important;   /* Green */
+        color: #fff !important;
+        border-color: #388e3c !important;
+    }
+    .semester-up-btn.enabled-btn:hover,
+    .semester-up-btn.enabled-btn:focus {
+        background: #388e3c !important;
+        border-color: #2e7031 !important;
+        color: #fff !important;
+    }
+    
+    .semester-up-btn.disabled-btn,
+    .semester-up-btn:disabled {
+        background: #e53935 !important;   /* Red */
+        color: #fff !important;
+        border-color: #b71c1c !important;
+        cursor: not-allowed !important;
+        pointer-events: none;
+        box-shadow: none;
+        opacity: 0.85;
+    }
+    .elegant-btn.blue-btn {
+        background: #1976d2 !important;   /* Blue */
+        color: #fff !important;
+        border-color: #1565c0 !important;
+    }
+    .elegant-btn.blue-btn:hover,
+    .elegant-btn.blue-btn:focus {
+        background: #1565c0 !important;
+        border-color: #0d47a1 !important;
+        color: #fff !important;
+    }
+
+    .modal-content {
+        border-radius: 1.5rem;
+        font-family: 'Segoe UI', sans-serif;
+      }
+      
+      .modal-header, .modal-footer {
+        border: none;
+      }
+      
+      .modal-title {
+        font-weight: 600;
+        font-size: 1.25rem;
+      }
+      
+      .modal-content {
+        font-family: 'Times New Roman', serif;
+        border: 2px solid #000;
+        border-radius: 1rem;
+      }
+      
+      hr {
+        border-width: 2px;
+      }
+      
+      .modal-footer {
+        border-top: none;
+      }
+      
+      
+      input, select, textarea {
+        border-radius: 0.5rem !important;
+        padding: 0.6rem !important;
+        border: 1px solid #ced4da;
+      }
+      
+      
+    @media (max-width: 900px) {
+        .semester-controls-row {
+            max-width: 100%;
+        }
+    }
+    @media (max-width: 700px) {
+        .semester-controls-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+        }
+        .semester-controls-row form {
+            width: 100%;
+        }
+        .semester-controls-row select,
+        .semester-controls-row button,
+        .semester-controls-row a.elegant-btn {
+            width: 100%;
+            margin: 0;
+        }
+    }
+
+    
+    
+    @media (max-width: 700px) {
+        .page-content {
+            padding: 1rem 0.2rem;
+        }
+        .table-container {
+            padding: 0.5rem;
+        }
+        #studentTable th, #studentTable td {
+            padding: 0.5rem 0.3rem;
+            font-size: 0.97rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-    <h2> Department of {{ department }} (Students)</h2>
+<h2>
+    Department of {{ department }} (Students) || 
+    Semester: 
+    {% if selected_semester == 0 %}
+      <span class="text-danger">Transferred / Inactive</span>
+    {% else %}
+      {{ selected_semester }}
+    {% endif %}
+  </h2>
+  
 
-    <div class="mb-3">
+    <div class="semester-controls-row">
         {% if is_hod %}
-            <a href="{% url 'add_student' %}" class="btn btn-primary">Add Student</a>
-            <a href="{% url 'department_report' department.id %}" class="btn btn-secondary">Department Summary</a>
+          {% if selected_semester != 0 %}
+            <form method="post" action="{% url 'semester_up' %}">
+              {% csrf_token %}
+              <input type="hidden" name="semester" value="{{ selected_semester }}">
+              <button type="submit"
+                class="elegant-btn semester-up-btn {% if not students %}disabled-btn{% else %}enabled-btn{% endif %}"
+                {% if not students %}disabled{% endif %}
+                onclick="return confirm('Are you sure you want to move all students in semester {{ selected_semester }} up by one?')">
+                <span style="font-size:1.1em;line-height:1;">&#8679;</span> Semester Up
+              </button>
+            </form>
+            <a href="{% url 'add_student' %}" class="elegant-btn blue-btn">Add Student</a>
+            <a href="{% url 'department_report' department.id %}" class="elegant-btn blue-btn">Department Summary</a>
+          {% endif %}
         {% endif %}
-    </div>
+      </div>
+      
 
-    <table id="studentTable" border="1">
-        <thead>
-            <tr>
-                <th>Serial No.</th>  <!-- No sorting -->
-                <th class="sortable" onclick="sortTable(1)">University Register Number <span></span> </th>
-                <th class="sortable" onclick="sortTable(2)">Roll No. <span></span> </th>
-                <th class="sortable" onclick="sortTable(3)">Name <span></span> </th>
-                <th class="sortable" onclick="sortTable(4)">Admission Number <span></span> </th>
-                <th class="sortable" onclick="sortTable(5)">Programme <span></span> </th>
-                {% if is_hod %}
-                    <th>Actions</th>
-                {% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for student in students %}
+    <div class="table-container">
+        <table id="studentTable">
+            <thead>
                 <tr>
-                    <td class="serial-number">{{ forloop.counter }}</td>  <!-- Serial Number -->
-                    <td>{{ student.university_register_number }}</td>
-                    <td>{{ student.roll_number }}</td>
-                    <td>{{ student.name }}</td>
-                    <td>{{ student.admission_number }}</td>
-                    <td>{{ student.programme.name }}</td>
+                    <th>Serial No.</th>
+                    <th class="sortable" onclick="sortTable(1)">University Register Number <span class="sort-arrow"></span></th>
+                    <th class="sortable" onclick="sortTable(2)">Roll No. <span class="sort-arrow"></span></th>
+                    <th class="sortable" onclick="sortTable(3)">Name <span class="sort-arrow"></span></th>
+                    <th class="sortable" onclick="sortTable(4)">Admission Number <span class="sort-arrow"></span></th>
+                    <th class="sortable" onclick="sortTable(5)">Programme <span class="sort-arrow"></span></th>
                     {% if is_hod %}
-                    <td>
-                        <a href="{% url 'edit_student' student.id %}" class="btn btn-warning btn-sm">Edit</a>
-                        <a href="{% url 'remove_student' student.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this student?')">Remove</a>
-                        <a href="{% url 'student_report' student.id %}" class="btn btn-success btn-sm">Report</a>
-                    </td>
+                        <th>Actions</th>
                     {% endif %}
                 </tr>
-            {% empty %}
-                <tr>
-                    <td {% if is_hod %}colspan="7"{% else %}colspan="6"{% endif %} class="text-center">No students found.</td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                    <tr>
+                        <td class="serial-number">{{ forloop.counter }}</td>
+                        <td>{{ student.university_register_number }}</td>
+                        <td>{{ student.roll_number }}</td>
+                        <td>{{ student.name }}</td>
+                        <td>{{ student.admission_number }}</td>
+                        <td>{{ student.programme.name }}</td>
+                        {% if is_hod %}
+                        <td>
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <a href="{% url 'edit_student' student.id %}" class="btn btn-outline-warning btn-sm">
+                                  Edit
+                                </a>
+                              
+                                <form method="POST" action="{% url 'remove_student' student.id %}" onsubmit="return confirm('Are you sure you want to remove this student?')" style="display:inline;">
+                                  {% csrf_token %}
+                                  <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                                </form>
+                              
+                                <a href="{% url 'student_report' student.id %}" class="btn btn-outline-success btn-sm">
+                                  Report
+                                </a>
+                              
+                                {% if student.current_semester == 0 %}
+                                  <button class="btn btn-outline-info btn-sm" onclick="showTcDetails({{ student.id }})">
+                                    View TC
+                                  </button>
+                                {% else %}
+                                <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#transferModal{{ student.id }}">
+                                  Transfer
+                                </button>
+                                  <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#tcModal{{ student.id }}">
+                                    Generate TC
+                                  </button>
+                                {% endif %}
+                              </div>
+                              
+                        </td>
+                        {% endif %}
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td {% if is_hod %}colspan="7"{% else %}colspan="6"{% endif %} class="text-center">No students found.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
+    {% if is_hod %}
+    {% for student in students %}
+    <!-- TC Modal for this student -->
+    <div class="modal fade" id="tcModal{{ student.id }}" tabindex="-1" aria-labelledby="tcModalLabel{{ student.id }}" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+          <div class="modal-content p-4 border border-dark rounded-4 shadow">
+            <form method="post" action="{% url 'create_tc' student.id %}">
+              {% csrf_token %}
+              <div class="modal-body text-center">
+      
+                <h2 class="fw-bold mb-2" style="font-family: 'Georgia', serif;">
+                  Nehru Arts and Science College, Kanhangad
+                </h2>
+                <h4 class="text-uppercase mb-4" style="font-family: 'Georgia', serif;">Transfer Certificate Application</h4>
+                <hr class="border-dark mb-4">
+      
+                <div class="text-start px-4" style="font-family: 'Times New Roman', Times, serif; font-size: 1.1rem; line-height: 2;">
+                  <p><strong>Student Name:</strong> {{ student.name }}</p>
+      
+                  <!-- Render form fields here (e.g., reason, semester, year) -->
+                  {{ tc_forms|dict_get:student.id }}
+                </div>
+      
+                <div class="text-start mt-4 px-4" style="font-family: 'Georgia', serif;">
+                  <p class="mb-0">Date of Application: <span id="tc-date-{{ student.id }}"></span></p>
+                </div>
+              </div>
+      
+              <div class="modal-footer justify-content-between px-4">
+                <button type="submit" class="btn btn-success px-4">Submit</button>
+                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    
+    <!-- Transfer Modal for this student -->
+    <div class="modal fade" id="transferModal{{ student.id }}" tabindex="-1" aria-labelledby="transferModalLabel{{ student.id }}" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content p-4 border border-dark rounded-4 shadow">
+          <form method="post" action="{% url 'create_transfer' student.id %}">
+            {% csrf_token %}
+            <div class="modal-body text-center">
+    
+              <h2 class="fw-bold mb-2" style="font-family: 'Georgia', serif;">
+                Nehru Arts and Science College, Kanhangad
+              </h2>
+              <h4 class="text-uppercase mb-4" style="font-family: 'Georgia', serif;">Student Transfer</h4>
+              <hr class="border-dark mb-4">
+    
+              <div class="text-start px-4" style="font-family: 'Times New Roman', Times, serif; font-size: 1.1rem; line-height: 2;">
+                <p><strong>Student Name:</strong> {{ student.name }}</p>
+    
+                <!-- Department dropdown -->
+                <div class="mb-3">
+                  <label for="departmentTo{{ student.id }}" class="form-label">Transfer To Department</label>
+                  <select name="department_to" id="departmentTo{{ student.id }}" class="form-select" required>
+                    {% for dept in departments %}
+                      {% if dept.id != student.programme.department.id %}
+                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+                </div>
+    
+                <!-- Programme dropdown -->
+                <div class="mb-3">
+                  <label for="programmeTo{{ student.id }}" class="form-label">Transfer To Programme</label>
+                  <select name="programme_to" id="programmeTo{{ student.id }}" class="form-select" required>
+                    <!-- Will be populated dynamically with JS -->
+                  </select>
+                </div>
+    
+                <!-- Semester completed -->
+                <div class="mb-3">
+                  <label for="semesterCompleted{{ student.id }}" class="form-label">Semesters Completed</label>
+                  <input type="number" name="semester_completed" id="semesterCompleted{{ student.id }}" 
+                         class="form-control" min="0" max="8" value="{{ student.current_semester }}" required>
+                </div>
+    
+                <!-- Remarks -->
+                <div class="mb-3">
+                  <label for="remarks{{ student.id }}" class="form-label">Remarks</label>
+                  <textarea name="remarks" id="remarks{{ student.id }}" class="form-control" rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+    
+            <div class="modal-footer justify-content-between px-4">
+              <button type="submit" class="btn btn-success px-4">Transfer</button>
+              <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- TC Modal -->
+    <div class="modal fade" id="tcModal" tabindex="-1" aria-labelledby="tcModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+          <div class="modal-content p-4 border border-dark rounded-4 shadow">
+            <div class="modal-body text-center">
+      
+              <h2 class="fw-bold mb-2" style="font-family: 'Georgia', serif;">
+                Nehru Arts and Science College, Kanhangad
+              </h2>
+              <h4 class="text-uppercase mb-4" style="font-family: 'Georgia', serif;">Transfer Certificate</h4>
+              <hr class="border-dark mb-4">
+      
+              <div class="text-start px-4" style="font-family: 'Times New Roman', Times, serif; font-size: 1.1rem; line-height: 2;">
+                <p>This is to certify that <strong><span id="tc-student">[Student Name]</span></strong> has been a student of this institution.</p>
+      
+                <p>He/She has applied for a Transfer Certificate for the following reason: <strong><span id="tc-reason">[Reason]</span></strong>.</p>
+      
+                <p>The student has completed up to <strong>Semester <span id="tc-semester">[Semester]</span></strong> at the time of application.</p>
+      
+                <p>The Transfer Certificate was issued in the year <strong><span id="tc-year">[Year]</span></strong>.</p>
+              </div>
+      
+              <div class="text-start mt-5 px-4" style="font-family: 'Georgia', serif;">
+                <p class="mb-0">Date of Issue: <span id="tc-date"></span></p>
+              </div>
+      
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+      
+      
+      
+  
+  
     <script>
         function sortTable(columnIndex) {
             let table = document.getElementById("studentTable");
@@ -106,5 +618,62 @@
                 cell.innerText = index + 1;
             });
         }
+
+            document.addEventListener("DOMContentLoaded", function () {
+              const dateSpans = document.querySelectorAll("[id^='tc-date-']");
+              const today = new Date().toLocaleDateString('en-IN', {
+                day: '2-digit', month: 'long', year: 'numeric'
+              });
+              dateSpans.forEach(span => span.textContent = today);
+            });
+          
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric'
+            });
+            document.getElementById("tc-date").textContent = formattedDate;
+          });
+
+        function showTcDetails(studentId) {
+            fetch(`/tc-details/${studentId}/`)
+              .then(response => response.json())
+              .then(data => {
+                if (data.status === 'success') {
+                  document.getElementById('tc-student').textContent = data.data.student;
+                  document.getElementById('tc-reason').textContent = data.data.reason;
+                  document.getElementById('tc-semester').textContent = data.data.leaving_semester;
+                  document.getElementById('tc-year').textContent = data.data.year_of_tc;
+                  new bootstrap.Modal(document.getElementById('tcModal')).show();
+                } else {
+                  alert(data.message);
+                }
+              });
+          }
+
+          document.addEventListener("DOMContentLoaded", function() {
+            {% for student in students %}
+              const deptSelect{{ student.id }} = document.getElementById("departmentTo{{ student.id }}");
+              const progSelect{{ student.id }} = document.getElementById("programmeTo{{ student.id }}");
+        
+              deptSelect{{ student.id }}.addEventListener("change", function() {
+                fetch(`/api/programmes/${this.value}/`)
+                  .then(res => res.json())
+                  .then(data => {
+                    progSelect{{ student.id }}.innerHTML = "";
+                    data.programmes.forEach(prog => {
+                      let opt = document.createElement("option");
+                      opt.value = prog.id;
+                      opt.textContent = prog.name;
+                      progSelect{{ student.id }}.appendChild(opt);
+                    });
+                  });
+              });
+            {% endfor %}
+          });
+          
     </script>
 {% endblock %}

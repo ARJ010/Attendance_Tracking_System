@@ -1,81 +1,91 @@
 {% extends 'base.html' %}
 
-{% block title %}Student Report{% endblock %}
+{% block title %}Student Report - {{ student.name }}{% endblock %}
 
 {% block content %}
 <style>
-    
-    .stdname{
-        color:green;
+    .stdname { color: #388e3c; font-weight: bold; }
+    h1, h2 { text-align: center; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .footer { text-align: center; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; }
+    table, th, td { border: 1px solid #bbb; padding: 8px; }
+    th { background-color: #f2f2f2; }
+    .summary-table { margin-top: 20px; }
+    .summary-table td { padding: 10px; text-align: left; }
+    .att-green { color: #388e3c; font-weight: bold; }
+    .att-yellow { color: #fbc02d; font-weight: bold; }
+    .att-red { color: #e53935; font-weight: bold; }
+    .progress-bar-bg {
+        background: #eee; border-radius: 8px; height: 18px; width: 100%; margin-top: 8px;
     }
-    h1 {
-        text-align: center;
+    .progress-bar-fill {
+        height: 100%; border-radius: 8px;
     }
-    .header {
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .footer {
-        text-align: center;
-        margin-top: 20px;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-        margin-bottom: 20px;
-    }
-    table, th, td {
-        border: 1px solid black;
-        padding: 8px;
-    }
-    th {
-        background-color: #f2f2f2;
-    }
-    .summary-table {
-        margin-top: 20px;
-    }
-    .summary-table td {
-        padding: 10px;
-        text-align: left;
-    }
-    @media print {
-    .footer button {
-        display: none;
-    }
-}
+    @media print { .footer button, .semester-select { display: none; } }
 </style>
 
-
 <div class="header">
-    <h1>Attendance Report for <h3 class="stdname">{{ student.name }}</h3></h1>
-    <p>Roll No: {{ student.university_register_number }} | Admission No: {{ student.admission_number }}</p>
+    <h1>Attendance Report</h1>
+    <div>
+        <span class="stdname">{{ student.name }}</span> |
+        Reg No: {{ student.university_register_number }} |
+        Admission No: {{ student.admission_number }} |
+        Programme: {{ student.programme.name }} |
+        Current Semester: {{ student.current_semester }}
+    </div>
+    {% if is_hod %}
+    <div style="text-align: center; margin-top: 12px;" class="semester-select">
+        <a href="{% url 'manage_grace_attendance' student.id %}?semester={{ selected_semester }}" class="btn" style="background-color: #1976d2; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            🛠️ Manage Grace Attendance
+        </a>
+    </div>
+    {% endif %}
 </div>
 
-<!-- Loop through each course -->
-{% for course_data in attendance_data %}
-<h2> {{ course_data.course.code }} - {{ course_data.course.name }} </h2>
+{% if semesters_history %}
+<form method="get" class="mb-3 semester-select" style="text-align:center;">
+    <label for="semester-select"><strong>Semester:</strong></label>
+    <select name="semester" id="semester-select" onchange="this.form.submit()">
+        {% for sem in semesters_history %}
+            <option value="{{ sem }}" {% if sem == selected_semester %}selected{% endif %}>Semester {{ sem }}</option>
+        {% endfor %}
+    </select>
+</form>
+{% endif %}
+
+{% for batch_data in attendance_data %}
+<h2>
+    {{ batch_data.course.code }} - {{ batch_data.course.name }}
+    | Year: {{ batch_data.batch.academic_year }} | Part: {{ batch_data.batch.part }}
+</h2>
 
 <table>
     <thead>
         <tr>
-            <th>Sl No</th>
-            <th>Date</th>
-            <th>Hour</th>
+            <th style="width: 80px; text-align: center;">Sl No</th>
+            <th style="width: 150px; text-align: center;">Date</th>
+            <th style="width: 100px; text-align: center;">Hour</th>
             <th>Status</th>
         </tr>
     </thead>
     <tbody>
-        {% for day in course_data.attendance_per_day %}
+        {% for day in batch_data.attendance_per_day %}
         <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>{{ day.date }}</td>
-            <td>{{ day.hour }}</td>
-            {% if day.status == 'Present' %}
-                <td><span style='font-size:25px; color: darkgreen;'>&#10004;</span></td>
-            {%else%}
-                <td><span style='font-size:25px;color: darkred;'>&#10006;</span></td>
-            {% endif %}
+            <td style="text-align: center;">{{ forloop.counter }}</td>
+            <td style="text-align: center;">{{ day.date }}</td>
+            <td style="text-align: center;">H{{ day.hour }}</td>
+            <td>
+                {% if day.status == 'Present' %}
+                    <span style='font-size:22px; color: #388e3c;' title="Present">&#10004;</span>
+                {% elif day.status == 'Grace' %}
+                    <span style='font-size:16px; color: #1976d2; font-weight: bold;' title="Grace Approved: {{ day.grace_reason }}">
+                        ℹ️ {{ day.grace_reason }} (Grace)
+                    </span>
+                {% else %}
+                    <span style='font-size:22px; color: #e53935;' title="Absent">&#10006;</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
@@ -84,48 +94,100 @@
 <div class="summary-table">
     <table>
         <tr>
-            <td>Total Hours</td>
-            <td>{{ course_data.total_hours }}</td>
+            <td style="width: 50%;">Total Hours</td>
+            <td>{{ batch_data.total_hours }}</td>
         </tr>
         <tr>
-            <td>Total Present</td>
-            <td>{{ course_data.total_present }}</td>
+            <td>Total Present (Physical)</td>
+            <td>{{ batch_data.total_present }}</td>
+        </tr>
+        <tr>
+            <td>Total Grace Hours Applied</td>
+            <td>{{ batch_data.total_grace }}</td>
         </tr>
         <tr>
             <td>Total Absent</td>
-            <td>{{ course_data.total_absent }}</td>
+            <td>{{ batch_data.total_absent }}</td>
         </tr>
         <tr>
-            <td>Attendance Percentage</td>
-            <td>{{ course_data.attendance_percentage }}%</td>
+            <td>Physical Attendance Percentage</td>
+            <td>{{ batch_data.physical_percentage }}%</td>
+        </tr>
+        <tr>
+            <td>Effective Attendance Percentage (with Grace)</td>
+            <td>
+                <span class="
+                    {% if batch_data.effective_percentage >= 85 %}
+                        att-green
+                    {% elif batch_data.effective_percentage >= 75 %}
+                        att-yellow
+                    {% else %}
+                        att-red
+                    {% endif %}
+                ">
+                    {{ batch_data.effective_percentage }}%
+                </span>
+            </td>
         </tr>
     </table>
 </div>
 {% endfor %}
 
 <div class="footer">
-    <p>Overall Attendance</p>
+    <h3>Overall Attendance Summary</h3>
     <table class="summary-table">
         <tr>
-            <td>Total Hours</td>
+            <td style="width: 50%;">Total Hours</td>
             <td>{{ total_hours }}</td>
         </tr>
         <tr>
-            <td>Total Present</td>
+            <td>Total Present (Physical)</td>
             <td>{{ total_present }}</td>
+        </tr>
+        <tr>
+            <td>Total Grace Hours Applied</td>
+            <td>{{ total_grace }}</td>
         </tr>
         <tr>
             <td>Total Absent</td>
             <td>{{ total_absent }}</td>
         </tr>
         <tr>
-            <td>Overall Attendance Percentage</td>
-            <td>{{ overall_attendance_percentage }}%</td>
+            <td>Overall Physical Attendance</td>
+            <td>{{ overall_physical_percentage }}%</td>
+        </tr>
+        <tr>
+            <td>Overall Effective Attendance (with Grace)</td>
+            <td>
+                <span class="
+                    {% if overall_effective_percentage >= 85 %}
+                        att-green
+                    {% elif overall_effective_percentage >= 75 %}
+                        att-yellow
+                    {% else %}
+                        att-red
+                    {% endif %}
+                ">
+                    {{ overall_effective_percentage }}%
+                </span>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"
+                        style="background:
+                            {% if overall_effective_percentage >= 85 %}
+                                #43a047
+                            {% elif overall_effective_percentage >= 75 %}
+                                #fbc02d
+                            {% else %}
+                                #e53935
+                            {% endif %};
+                            width:{{ overall_effective_percentage }}%;">
+                    </div>
+                </div>
+            </td>
         </tr>
     </table>
 </div>
 <div class="footer print-button">
-    <button onclick="window.print()">Print</button>
+    <button onclick="window.print()" class="btn" style="background-color: #333; color: white; padding: 10px 24px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Print Report</button>
 </div>
-
 {% endblock %}

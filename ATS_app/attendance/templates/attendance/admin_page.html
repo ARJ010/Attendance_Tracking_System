@@ -54,10 +54,41 @@
 
 <div class="dashboard-container">
     <h2 class="dashboard-header">Admin Dashboard</h2>
-    <div class="dashboard-grid">
+    <div class="dashboard-grid mb-4">
         <a href="{% url 'programme_courses_view' %}" class="dashboard-box">Programme Courses</a>
         <a href="{% url 'admin_department_view' %}" class="dashboard-box">Admin Department</a>
         <a href="{% url 'admin:index' %}" class="dashboard-box">Admin Panel</a>
     </div>
+
+    <!-- ❄️ Bulk Freeze Semester Course Batches College-Wide -->
+    <div class="card border border-danger-subtle bg-danger-subtle bg-opacity-10 mt-4 rounded-3 shadow-sm" style="max-width: 600px; width: 100%;">
+        <div class="card-body py-4 px-4 text-center">
+            <h4 class="fw-bold text-danger mb-2">❄️ College-Wide Semester Bulk Freeze</h4>
+            <p class="text-muted mb-4" style="font-size: 0.9rem;">Deactivate all active course batches across all departments for a specific semester at once (e.g., at the end of the academic term).</p>
+            <form method="POST" action="{% url 'admin_bulk_deactivate_batches' %}" class="d-flex align-items-center justify-content-center gap-3" onsubmit="return confirmBulkDeactivate()">
+                {% csrf_token %}
+                <label for="bulk_deactivate_sem" class="fw-bold mb-0" style="color: #333;">Semester:</label>
+                <select name="semester" id="bulk_deactivate_sem" class="form-select border-dark fw-bold" style="width: auto;" required>
+                    <option value="">-- Choose Semester --</option>
+                    {% for i in "12345678"|make_list %}
+                        <option value="{{ i }}">Semester {{ i }}</option>
+                     {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-danger fw-bold shadow-sm">🔴 Freeze Semester</button>
+            </form>
+        </div>
+    </div>
 </div>
+
+<script>
+    function confirmBulkDeactivate() {
+        const semSelect = document.getElementById('bulk_deactivate_sem');
+        const sem = semSelect.value;
+        if (!sem) {
+            alert("Please select a semester.");
+            return false;
+        }
+        return confirm(`⚠️ WARNING: Are you sure you want to deactivate (freeze) all active batches of courses college-wide for Semester ${sem}? Teachers will no longer be able to record attendance for this semester.`);
+    }
+</script>
 {% endblock %}

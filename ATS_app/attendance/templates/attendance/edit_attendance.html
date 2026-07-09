@@ -126,7 +126,8 @@
         <h2 class="text-center mb-4">Edit Attendance</h2>
         
         <div class="mb-3 text-center">
-            <h4><strong>Course:</strong> {{ attendance_record.course.name }}</h4>
+            <h4><strong>Batch:</strong> {{ attendance_record.batch }}</h4>
+            <h5><strong>Course:</strong> {{ attendance_record.batch.course.name }}</h5>
             <h5><strong>Date:</strong> {{ attendance_record.date }}</h5>
             <h5><strong>Hour:</strong> {{ attendance_record.hour }}</h5>
         </div>
@@ -176,7 +177,7 @@
 
             <div class="text-center mt-4">
                 <button type="submit" class="btn btn-dark btn-lg btn-submit">Update Changes</button>
-                <a href="{% url 'teacher_attendance_list' %}" class="btn btn-outline-dark ms-3">Cancel</a>
+                <a href="{% url 'teacher_attendance_list' attendance_record.batch.course.semester %}" class="btn btn-outline-dark ms-3">Cancel</a>
             </div>
 
         </form>

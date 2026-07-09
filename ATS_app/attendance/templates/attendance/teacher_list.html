@@ -17,16 +17,18 @@
       <tr>
         <th>Name</th>
         <th>Username</th>
+        <th>Acronym</th>
         <th>Email</th>
         <th>Mobile Number</th>
         <th>Actions</th> <!-- Add this column for actions -->
       </tr>
     </thead>
     <tbody>
-      {% for teacher in teachers %}
+      {% for teacher in active_teachers %}
         <tr>
-          <td>{{ teacher.user.first_name }}</td>
+          <td>{{ teacher.user.get_full_name }}</td>
           <td>{{ teacher.user.username }}</td>
+          <td>{{ teacher.acronym }}</td>
           <td>{{ teacher.user.email }}</td>
           <td>{{ teacher.phone_number }}</td>
           <td>
@@ -44,10 +46,19 @@
                     <!-- HoD can reset password of other teachers -->
                     <a href="{% url 'reset_password' teacher.id %}" class="btn btn-info btn-sm" 
                        onclick="return confirm('password: {{ teacher.user.username }}@123')">Reset Password</a>
+                       
+                    <!-- HoD can deactivate other teachers -->
+                    <form method="POST" action="{% url 'toggle_teacher_active' teacher.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Are you sure you want to deactivate this teacher? They won\'t be able to log in or be assigned to courses.')">Deactivate</button>
+                    </form>
                 {% endif %}
                 
                 <!-- HoD can delete any teacher -->
-                <a href="{% url 'delete_teacher' teacher.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this teacher?')">Delete</a>
+                <form method="POST" action="{% url 'delete_teacher' teacher.id %}" onsubmit="return confirm('Are you sure you want to delete this teacher?')" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
             {% else %}
                 <!-- Actions for a non-HoD teacher -->
                 {% if teacher.user == request.user %}
@@ -60,9 +71,57 @@
         </tr>
       {% empty %}
         <tr>
-          <td colspan="5">No teachers found.</td>
+          <td colspan="6">No active teachers found.</td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
+
+  {% if is_hod and inactive_teachers %}
+  <div class="mt-5 mb-4">
+      <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#inactiveTeachersCollapse" aria-expanded="false" aria-controls="inactiveTeachersCollapse">
+          📁 Show Inactive Teachers ({{ inactive_teachers|length }})
+      </button>
+      
+      <div class="collapse mt-3" id="inactiveTeachersCollapse">
+          <div class="card card-body border-dark p-4 rounded-3 shadow-sm" style="background-color: #fcfcfc;">
+              <h4 class="text-muted mb-3">Inactive Teachers</h4>
+              <table class="table table-striped table-hover align-middle">
+                  <thead>
+                      <tr class="table-secondary">
+                          <th>Name</th>
+                          <th>Username</th>
+                          <th>Acronym</th>
+                          <th>Email</th>
+                          <th>Mobile Number</th>
+                          <th>Actions</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      {% for teacher in inactive_teachers %}
+                          <tr>
+                              <td>{{ teacher.user.get_full_name }}</td>
+                              <td>{{ teacher.user.username }}</td>
+                              <td>{{ teacher.acronym }}</td>
+                              <td>{{ teacher.user.email }}</td>
+                              <td>{{ teacher.phone_number }}</td>
+                              <td>
+                                  <form method="POST" action="{% url 'toggle_teacher_active' teacher.id %}" style="display:inline;">
+                                      {% csrf_token %}
+                                      <button type="submit" class="btn btn-success btn-sm">Activate</button>
+                                  </form>
+                                  
+                                  <form method="POST" action="{% url 'delete_teacher' teacher.id %}" onsubmit="return confirm('Are you sure you want to delete this teacher permanently?')" style="display:inline;">
+                                      {% csrf_token %}
+                                      <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                  </form>
+                              </td>
+                          </tr>
+                      {% endfor %}
+                  </tbody>
+              </table>
+          </div>
+      </div>
+  </div>
+  {% endif %}
 {% endblock %}

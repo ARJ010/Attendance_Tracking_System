@@ -4,165 +4,313 @@
 
 {% block extra_head %}
 <style>
-/* Style for the modal */
-/* Style for the modal */
+.course-list-container {
+  margin-top: 30px;
+}
+
+.course-card {
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  background-color: #fdfdfd;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.course-header {
+  padding: 15px 20px;
+  font-weight: 600;
+  font-size: 16px;
+  background-color: #f1f3f5;
+  border-radius: 10px 10px 0 0;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.3s ease;
+}
+
+.course-header:hover {
+  background-color: #e2e6ea;
+}
+
+.expand-icon {
+  font-size: 14px;
+  transition: transform 0.3s ease;
+}
+
+.course-header.expanded .expand-icon {
+  transform: rotate(90deg);
+}
+
+.batch-table-container {
+  padding: 15px 25px;
+}
+
+.batch-table {
+  width: 100%;
+  background: #fff;
+  border-collapse: collapse;
+  border: 1px solid #ccc;
+}
+
+.batch-table th, .batch-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.batch-table th {
+  background-color: #f8f9fa;
+}
+
+.batch-table tr:hover {
+  background-color: #f1f1f1;
+}
+
 .modal-content {
   border-radius: 10px;
   box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
 }
-
 .modal-header {
   background-color: #007bff;
   color: white;
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
-  padding: 15px;
 }
-
-.modal-title {
-  font-weight: bold;
-}
-
 .btn-close {
   filter: invert(1);
 }
-
 .table-responsive {
-  max-height: 700px; /* Makes the table scrollable */
+  max-height: 500px;
   overflow-y: auto;
 }
-
 </style>
 {% endblock %}
 
 {% block content %}
-    <h2>Department of {{ department }} (Courses)</h2>
-    {% if is_hod %}
-    <div class="mb-3">
-        <a href="{% url 'add_course' %}" class="btn btn-primary">Add Course</a>
-    </div>
-    {% endif %}
-    <table>
-        <thead>
-          <tr>
-            <th>Course Name</th>
-            <th>Course Code</th>
-            <th>Department</th>
-            <th>Actions</th>
-            <th>Reports</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for course in courses %}
-            <tr>
-              <td>{{ course.name }}</td>
-              <td>{{ course.code }}</td>
-              <td>{{ course.department.name }}</td>
-              <td>
-                <button type="button" class="btn btn-info show-btn" data-course="{{ course.id }}">Show Students</button>
-                <a href="{% url 'take_attendance' course.id %}">
-                    <button type="button" class="btn btn-info">Take Attendance</button>
-                </a>
-                {% if is_hod %}
-                <a href="{% url 'edit_course' course.id %}">
-                    <button type="button" class="btn btn-warning">Edit Course</button>
-                </a>
-                {% endif %}
-            </td>
-            <td>
-              <div class="mb-3">
-                <a href="{% url 'attendance_report' course.id %}" class="btn btn-success">Summary Report</a>
-                <a href="{% url 'compact_attendance_report' course.id %}" class="btn btn-success">Datewise Report</a>
-              </div>            
-            </td>
-            </tr>
-          {% empty %}
-            <tr>
-                <td colspan="5">No courses found.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-    </table>
+<div class="course-list-container container">
+  <h2 class="mb-4">Courses - Department of {{ department }}</h2>
 
-<!-- Styled Modal -->
-<div class="modal fade" id="studentsModal" tabindex="-1" aria-labelledby="studentsModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content">
-          <div class="modal-header">
-              <h5 class="modal-title" id="studentsModalLabel">Assigned Students</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-              <div class="table-responsive">
-                  <table>
-                      <thead>
-                          <tr>
-                              <th>#</th>
-                              <th>Name</th>
-                              <th>University Reg. No</th>
-                              <th>Programme</th>
-                          </tr>
-                      </thead>
-                      <tbody id="studentList">
-                          <!-- Student data will be inserted dynamically -->
-                      </tbody>
-                  </table>
-              </div>
-          </div>
+  {% if is_hod %}
+    <div class="mb-3">
+      <a href="{% url 'add_course' %}" class="btn btn-primary">+ Add Course</a>
+    </div>
+  {% endif %}
+
+  {% for course in courses %}
+  <div class="course-card">
+    <div class="course-header" onclick="toggleBatches('batches-{{ course.id }}', this)">
+      <span>
+        {{ course.name }} ({{ course.code }})
+        <span class="expand-icon">&#9654;</span>
+      </span>
+      <span class="d-flex align-items-center gap-2">
+        <span class="text-muted small me-2">Semester: {{ course.semester }}</span>
+        {% if is_hod %}
+          <a href="{% url 'edit_course' course.id %}" class="btn btn-sm btn-outline-secondary ms-2" 
+             onclick="event.stopPropagation();">
+            <i class="fas fa-edit"></i> Edit
+          </a>
+        {% endif %}
+      </span>
+    </div>
+    <div id="batches-{{ course.id }}" class="batch-table-container" style="display: none;">
+      {% if is_hod %}
+      <a href="#" class="btn btn-sm btn-outline-primary mt-2 mb-2" onclick="openCreateBatchModal({{ course.id }}); return false;">+ Add Batch</a>
+      {% endif %}
+      {% if course.batches.exists %}
+      <div class="table-responsive">
+        <table class="batch-table table table-striped table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>Batch Name</th>
+              <th>Status</th>
+              <th>Actions</th>
+              <th>Reports</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for batch in course.batches.all reversed %}
+            <tr>
+              <td>{{ batch.academic_year }} - {{ batch.part }}</td>
+              <td>
+                {% if batch.active %}
+                  <span class="badge bg-success">Active</span>
+                {% else %}
+                  <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if is_hod %}
+                <form method="post" action="{% url 'toggle_batch_active' batch.id %}" style="display:inline;">
+                  {% csrf_token %}
+                  {% if batch.active %}
+                      <button type="submit" class="btn btn-sm btn-warning">Deactivate</button>
+                  {% else %}
+                      <button type="submit" class="btn btn-sm btn-success">Activate</button>
+                  {% endif %}
+                </form>
+                {% endif %}
+                <button class="btn btn-sm btn-info show-batch-btn" data-batch="{{ batch.id }}">Show Students</button>
+                <a href="{% url 'take_attendance' batch.id %}" class="btn btn-sm btn-info">Take Attendance</a>
+              </td>
+              <td>
+                  <a href="{% url 'attendance_report' batch.id %}" class="btn btn-success">Summary Report</a>
+                  <a href="{% url 'compact_attendance_report' batch.id %}" class="btn btn-success">Datewise Report</a>
+
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
+      {% else %}
+      <p class="text-muted">No batches created for this course.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <p class="text-muted">No courses available.</p>
+  {% endfor %}
+</div>
+
+<!-- Create Batch Modal -->
+<div class="modal fade" id="createBatchModal" tabindex="-1" aria-labelledby="createBatchModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="createBatchForm" method="post">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createBatchModalLabel">Create Batch</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="createBatchModalBody">
+          <!-- The form will be loaded here via AJAX -->
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Create Batch</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
-
-
+<!-- Modal -->
+<div class="modal fade" id="studentsModal" tabindex="-1" aria-labelledby="studentsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="studentsModalLabel">Assigned Students</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>University Reg. No</th>
+                <th>Programme</th>
+              </tr>
+            </thead>
+            <tbody id="studentList"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const buttons = document.querySelectorAll('.show-btn');
+document.addEventListener("DOMContentLoaded", function () {
+  const batchButtons = document.querySelectorAll('.show-batch-btn');
 
-    buttons.forEach(button => {
-        button.addEventListener('click', function () {
-            const courseId = button.getAttribute('data-course');
-
-            // Fetch the students assigned to this course using AJAX
-            fetch(`/get_assigned_students/${courseId}/`)
-                .then(response => response.json())
-                .then(data => {
-                    const studentList = document.getElementById('studentList');
-                    studentList.innerHTML = ''; // Clear previous entries
-
-                    if (data.students.length > 0) {
-                        data.students.forEach((student, index) => {
-                            const row = `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${student.name}</td>
-                                    <td>${student.university_register_number}</td>
-                                    <td>${student.programme}</td>
-                                </tr>`;
-                            studentList.innerHTML += row;
-                        });
-                    } else {
-                        studentList.innerHTML = `
-                            <tr>
-                                <td colspan="4" class="text-center">No students assigned</td>
-                            </tr>`;
-                    }
-                })
-                .catch(error => {
-                    console.error("Error fetching students:", error);
-                    alert("Failed to fetch assigned students. Please try again.");
-                });
-
-            // Show the modal
-            const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
-            modal.show();
-        });
+  batchButtons.forEach(button => {
+    button.addEventListener('click', function () {
+      const batchId = button.getAttribute('data-batch');
+      fetch(`/get_assigned_batch_students/${batchId}/`)
+        .then(response => response.json())
+        .then(data => populateStudentModal(data.students))
+        .catch(error => showError("batch", error));
     });
+  });
+
+  function populateStudentModal(students) {
+    const studentList = document.getElementById('studentList');
+    studentList.innerHTML = '';
+    if (students.length > 0) {
+      students.forEach((student, index) => {
+        studentList.innerHTML += `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${student.name}</td>
+            <td>${student.university_register_number}</td>
+            <td>${student.programme}</td>
+          </tr>`;
+      });
+    } else {
+      studentList.innerHTML = `<tr><td colspan="4" class="text-center">No students assigned</td></tr>`;
+    }
+    new bootstrap.Modal(document.getElementById('studentsModal')).show();
+  }
+
+  function showError(type, error) {
+    console.error(`Error fetching ${type} students:`, error);
+    alert(`Failed to fetch assigned ${type} students.`);
+  }
 });
 
-</script>
+function toggleBatches(id, header) {
+  const batchDiv = document.getElementById(id);
+  const icon = header.querySelector('.expand-icon');
+  if (batchDiv.style.display === "none") {
+    batchDiv.style.display = "block";
+    header.classList.add("expanded");
+    icon.innerHTML = "&#9660;"; // ▼ Down arrow
+  } else {
+    batchDiv.style.display = "none";
+    header.classList.remove("expanded");
+    icon.innerHTML = "&#9654;"; // ▶ Right arrow
+  }
+}
 
+function openCreateBatchModal(courseId) {
+  fetch(`/create_batch_form/${courseId}/`)
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('createBatchModalBody').innerHTML = html;
+      // Set the form's action to the correct URL
+      document.getElementById('createBatchForm').action = `/create_batch/${courseId}/`;
+      new bootstrap.Modal(document.getElementById('createBatchModal')).show();
+    });
+}
+
+// Handle form submission via AJAX (optional, for better UX)
+document.addEventListener('DOMContentLoaded', function() {
+  const createBatchForm = document.getElementById('createBatchForm');
+  if (createBatchForm) {
+    createBatchForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          location.reload(); // Reload to show new batch
+        } else {
+          document.getElementById('createBatchModalBody').innerHTML = data.form_html;
+        }
+      });
+    });
+  }
+});
+</script>
 {% endblock %}

@@ -273,83 +273,78 @@
                     <td>{{ semester }}</td>
                 </tr>
                 <tr>
-                    <th>Course</th>
-                    <td>{{ course.code }} - {{ course.name }}</td>
-                </tr>
-                <tr>
-                    <th>Year of Admission</th>
-                    <td>{{ admission_year }}</td>
+                    <th>Batch</th>
+                    <td>
+                        {{ batch.course.code }} - {{ batch.course.name }}<br>
+                        Year: {{ batch.academic_year }} | Part: {{ batch.part }}
+                    </td>
                 </tr>
                 <tr>
                     <th>Total Hours Taken</th>
                     <td>{{ total_hours }}</td>
                 </tr>
                 <tr>
-                <th>Date & Time</th>
+                    <th>Date & Time</th>
                     <td>{{ date_time|date:"Y-m-d H:i:s" }}</td>
+                </tr>
+                <tr>
+                    <th>Teachers Taken</th>
+                    <td>
+                        {% if teachers_info %}
+                            {{ teachers_info|join:", " }}
+                        {% else %}
+                            No attendance taken yet
+                        {% endif %}
+                    </td>
                 </tr>
             </tbody>            
         </table>
     </div>
 
     <!-- Pagination controls -->
-<div class="pagination">
-    {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" class="pagination-button">Previous</a>
-    {% endif %}
-    
-    <div class="pagination-numbers">
-        {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-                <span class="pagination-number active">{{ num }}</span>
-            {% else %}
-                <a href="?page={{ num }}" class="pagination-number">{{ num }}</a>
-            {% endif %}
-        {% endfor %}
-    </div>
+    {% include "includes/pagination.html" %}
 
-    {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}" class="pagination-button">Next</a>
-    {% endif %}
-</div>
 
-    <div class="table-responsive">
-        <table border="1" cellpadding="5" cellspacing="0">
-            <thead>
+<div class="table-responsive">
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Sl. No.</th>
+                <th>Reg. No.</th>
+                <th>Roll No.</th>
+                <th>Name</th>
+                {% for date, hour, _, is_new_date, teacher_name in visible_columns %}
+                    {% if date and hour %}
+                        <th class="mixed-header {% if is_new_date %}thick-left-border{% endif %}">
+                            <div class="date-vertical">{{ date }}</div>
+                            <div class="hour-horizontal">H{{ hour }}</div>
+                            <div style="font-size: 12px; font-style: italic; margin-top: 4px;">{{ teacher_name }}</div>
+                        </th>
+                    {% else %}
+                        <th class="mixed-header"></th>
+                    {% endif %}
+                {% endfor %}
+            
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in report_data %}
                 <tr>
-                    <th>Sl. No.</th>
-                    <th>Reg. No.</th>
-                    <th>Roll No.</th>
-                    <th>Name</th>
-                    {% for date, hour, _, is_new_date in page_obj.object_list %}
-                        {% if date and hour %}
-                            <th class="mixed-header {% if is_new_date %}thick-left-border{% endif %}">
-                                <div class="date-vertical">{{ date }}</div>
-                                <div class="hour-horizontal">H{{ hour }}</div>
-                            </th>
-                        {% else %}
-                            <th class="mixed-header"></th>
-                        {% endif %}
+                    <td>{{ student.sl_no }}</td>
+                    <td>{{ student.reg_no }}</td>
+                    <td>{{ student.roll_no }}</td>
+                    <td>{{ student.name }}</td>
+                    {% for status, is_new_date in student.attendance %}
+                        <td class="{% if is_new_date %}thick-left-border{% endif %}" style="text-align: center; color: {% if status == 'A' %}red{% elif status != 'X' and status != '' %}blue{% endif %}; font-weight: {% if status != 'X' and status != 'A' and status != '' %}bold{% endif %};">
+                            {{ status }}
+                        </td>
                     {% endfor %}
                 </tr>
-            </thead>
-            <tbody>
-                {% for student in report_data %}
-                    <tr>
-                        <td>{{ student.sl_no }}</td>
-                        <td>{{ student.reg_no }}</td>
-                        <td>{{ student.roll_no }}</td>
-                        <td>{{ student.name }}</td>
-                        {% for status, is_new_date in student.attendance %}
-                            <td class="{% if is_new_date %}thick-left-border{% endif %}" style="text-align: center; color: {% if status == 'A' %}red{% endif %};">
-                                {{ status }}
-                            </td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 
 <!-- Pagination controls -->
 <div class="pagination">

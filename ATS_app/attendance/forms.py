@@ -1,7 +1,18 @@
+import re
 from django import forms
-from .models import Student, Teacher, Course, StudentCourse, TeacherCourse, HourDateCourse, AbsentDetails,Programme,Department
+from .models import Student, Teacher, Course,Programme,Department,Batch,TC
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
+from django.core.exceptions import ValidationError
+
+def validate_university_reg_no(value):
+    if value:
+        pattern = r'^NA\d{2}[A-Z]{4}\d{3}$'
+        if not re.match(pattern, value):
+            raise ValidationError(
+                "University Register Number must follow the pattern NA24MATR001 "
+                "(NA + 2-digit year + 4 letter programme code + 3-digit serial)."
+            )
 
 class UserForm(forms.ModelForm):
     password = forms.CharField(widget=forms.PasswordInput, required=True)
@@ -22,7 +33,7 @@ class UserEditForm(forms.ModelForm):
 class TeacherForm(forms.ModelForm):
     class Meta:
         model = Teacher
-        fields = ['department', 'phone_number']
+        fields = ['acronym','department', 'phone_number']
 
     def __init__(self, *args, **kwargs):
         # Get the logged-in teacher from kwargs
@@ -37,9 +48,16 @@ class TeacherForm(forms.ModelForm):
 
 # Form for creating/updating a Student
 class StudentForm(forms.ModelForm):
+    university_register_number = forms.CharField(
+        required=False,
+        validators=[validate_university_reg_no],
+        label="University Register Number",
+        widget=forms.TextInput(attrs={'placeholder': 'e.g. NA24MATR001'})
+    )
+
     class Meta:
         model = Student
-        fields = ['name', 'university_register_number','roll_number', 'admission_number', 'programme']
+        fields = ['name', 'university_register_number','year_of_enrolment','roll_number', 'admission_number', 'programme', 'current_semester']
     
     def __init__(self, *args, **kwargs):
         # Get the currently logged-in teacher's department
@@ -54,9 +72,16 @@ class StudentForm(forms.ModelForm):
 
 # Form for creating/updating a Student
 class AdminStudentForm(forms.ModelForm):
+    university_register_number = forms.CharField(
+        required=False,
+        validators=[validate_university_reg_no],
+        label="University Register Number",
+        widget=forms.TextInput(attrs={'placeholder': 'e.g. NA24MATR001'})
+    )
+
     class Meta:
         model = Student
-        fields = ['name', 'university_register_number','roll_number', 'admission_number', 'programme']
+        fields = ['name', 'university_register_number','year_of_enrolment','roll_number', 'admission_number', 'programme', 'current_semester']
     
 
     
@@ -96,20 +121,15 @@ class CourseForm(forms.ModelForm):
             self.fields['department'].queryset = Department.objects.filter(id=logged_in_teacher.department.id)
 
 
+class BatchForm(forms.ModelForm):
+    class Meta:
+        model = Batch
+        fields = ['part']
+        widgets = {
+            'part': forms.Select(),
+        }
 
 
-# Form for assigning a Student to a Course
-class StudentCourseForm(forms.Form):
-    student = forms.ModelChoiceField(
-        queryset=Student.objects.all(),
-        widget=forms.Select(attrs={'placeholder': 'Select student'}),
-        label="Select Student"
-    )
-    courses = forms.ModelMultipleChoiceField(
-        queryset=Course.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
-        label="Select Courses"
-    )
 
 class CourseSelectionForm(forms.Form):
     courses = forms.ModelMultipleChoiceField(
@@ -118,39 +138,15 @@ class CourseSelectionForm(forms.Form):
         label="Select Courses"
     )
 
-# Form for assigning a Teacher to a Course
-class TeacherCourseForm(forms.ModelForm):
+class TCForm(forms.ModelForm):
     class Meta:
-        model = TeacherCourse
-        fields = ['teacher', 'course']
+        model = TC
+        fields = ['reason', 'leaving_semester']
         widgets = {
-            'teacher': forms.Select(attrs={'placeholder': 'Select teacher'}),
-            'course': forms.Select(attrs={'placeholder': 'Select course'}),
+            'reason': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Enter reason'}),
+            'leaving_semester': forms.NumberInput(attrs={'min': 1, 'max': 8}),
         }
 
-
-# Form for managing Hour-Date-Course details
-class HourDateCourseForm(forms.ModelForm):
-    class Meta:
-        model = HourDateCourse
-        fields = ['date', 'hour']
-        widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'hour': forms.TextInput(attrs={'placeholder': 'Enter hour (e.g., 1st Hour, 2nd Hour)'}),
-        }
-
-
-# Form for managing Absent Details
-class AbsentDetailsForm(forms.ModelForm):
-
-    class Meta:
-        model = AbsentDetails
-        fields = ['hour_date_course', 'student', 'status']
-        widgets = {
-            'hour_date_course': forms.Select(attrs={'placeholder': 'Select Hour-Date-Course'}),
-            'student': forms.Select(attrs={'placeholder': 'Select student'}),
-            'status': forms.Select(choices=[(False, 'Absent'), (True, 'Present')]),
-        }
 
 
 class CSVUploadForm(forms.Form):

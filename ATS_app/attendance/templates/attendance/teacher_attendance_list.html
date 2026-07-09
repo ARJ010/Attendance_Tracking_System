@@ -7,6 +7,7 @@
     <table>
         <thead>
             <tr>
+                <th>Batch</th>
                 <th>Course</th>
                 <th>Date</th>
                 <th>Hour</th>
@@ -16,17 +17,21 @@
         <tbody>
             {% for record in attendance_records %}
                 <tr>
-                    <td>{{ record.course.name }}</td>
+                    <td>{{ record.batch }}</td>
+                    <td>{{ record.batch.course.name }}</td>
                     <td>{{ record.date }}</td>
                     <td>Hour {{ record.hour }}</td>
                     <td>
                         <a href="{% url 'edit_attendance' record.id %}" class="btn btn-warning btn-sm">Edit</a>
-                        <a href="{% url 'remove_attendance' record.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this record?')">Remove</a>
+                        <form method="POST" action="{% url 'remove_attendance' record.id %}" onsubmit="return confirm('Are you sure you want to remove this record?')" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                        </form>
                     </td>
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center">No attendance records found.</td>
+                    <td colspan="5" class="text-center">No attendance records found.</td>
                 </tr>
             {% endfor %}
         </tbody>
